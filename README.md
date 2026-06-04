@@ -6,7 +6,7 @@ frontend.
 
 ## The example
 
-From Eduardo Valentin: a self-attention QKV projection written two ways.
+A self-attention QKV projection written two ways.
 
 - **Program A (unfused)** — three independent matmuls:
   `Q = X @ Wq`, `K = X @ Wk`, `V = X @ Wv`.
