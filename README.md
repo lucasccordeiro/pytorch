@@ -61,6 +61,31 @@ Soundness notes:
 - An exact-equality variant (`assert A == B`) verifies in seconds and is the
   recommended smoke test; the tolerance variant is the faithful `allclose` model.
 
+### Choosing the verification strategy
+
+For **fixed dimensions** (as in `qkv_equiv.py`), every loop has a constant,
+statically-known bound, so full unrolling is a *complete* proof — not a bounded
+approximation:
+
+- **`--unwind N` (N ≥ largest loop bound) with unwinding assertions on** — the
+  recommended choice. The unwinding-assertion check is what certifies that no
+  loop was truncated, so a SUCCESSFUL result is a real proof.
+- **`--incremental-bmc`** — equally sound and more ergonomic: it raises the
+  bound automatically until the unwinding assertions hold, so you don't have to
+  compute the maximum loop bound by hand (it removes the "did I pick a big
+  enough `--unwind`?" footgun). Slightly slower, same guarantee.
+- **`--k-induction` / `--k-induction-parallel`** — *not* needed here. These
+  prove properties of **unbounded** loops by induction; after fully unrolling
+  constant-bound loops there is nothing to induct over, so they add machinery
+  for no gain (and tend not to converge on nested matmul loops without supplied
+  invariants).
+
+To prove equivalence for **arbitrary dimensions** (symbolic `SEQ_LEN/D/H`, i.e.
+a single size-independent result rather than one proof per size), the loops
+become symbolically bounded and `--unwind` can no longer be complete. That is
+exactly where **`--k-induction-parallel`** belongs — with the caveat that
+matmul's nested loops generally need loop invariants to converge.
+
 ## ESBMC defects found while building this PoC
 
 See `bugs/` — four reproducers, each independently confirmed on ESBMC 8.3.0:
