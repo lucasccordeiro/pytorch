@@ -72,6 +72,28 @@ also dominates: Z3 + `--floatbv` is ≫100× slower than Bitwuzla + `--floatbv`.
 choice across proofs, refutations, and the torch OM; the int/real encodings buy
 Lean-class speed only by giving up exactly what BMC is here for.
 
+## Lean vs. ESBMC `--ir` (apples-to-apples: both real arithmetic)
+
+With `--ir`, ESBMC reasons over **reals** — the same semantic level as the Lean
+proof (no bit-precise FP). At that level the two are directly comparable:
+
+| Aspect | **Lean (ITP)** | **ESBMC `--ir` (BMC)** |
+| --- | --- | --- |
+| Arithmetic | exact reals / integers (no FP) | integers + reals (FP abstracted) |
+| Order-preserving QKV proof | `rfl`, ~5 s | UNSAT, ~3 s (scalar) |
+| Generality | **∀ dimensions** (one theorem) | **bounded** — fixed shapes only |
+| What is checked | machine-checked proof (small kernel TCB) | UNSAT over the bounded domain (solver + frontend TCB) |
+| Effort | encode types, state theorem, write proof | write the program (= spec), push-button |
+| Counterexamples | none (failed proof ≠ witness) | concrete for real-distinguishable cases — but nonlinear-real SAT can diverge (buggy `--ir` killed >19 min) |
+| Reassociation | sound (`ring`/`omega`), **false in FP** | also "holds" (reals), **FP-blind** |
+
+**Upshot:** `--ir` makes the two genuinely close — same real-number semantics,
+similar few-second times on the order-preserving proof. The residual differences:
+Lean is **unbounded / ∀-shapes** and kernel-checked; ESBMC `--ir` is **bounded**
+but **push-button** (program = spec). And **neither captures bit-precise IEEE-754
+in this mode**, so neither catches FP-reassociation bugs — that needs ESBMC's
+default `--floatbv` (which also yields the counterexample).
+
 > Minor tooling note: `--ir-ieee` without `--z3` aborts on the default Bitwuzla
 > ("Bitwuzla does not support integer encoding mode") instead of auto-selecting a
 > compatible solver or erroring cleanly — worth an upstream UX fix.
