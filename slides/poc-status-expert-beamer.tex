@@ -50,7 +50,7 @@
 \begin{frame}{Problem \& threat model}
   Optimising transformations --- \textbf{operator fusion, kernel rewrites, compiler passes} ---
   must be semantics-preserving. We decide:
-  \[ \forall\, X, W \in \text{range}.\quad P_{\text{unfused}}(X,W)\ \equiv\ P_{\text{fused}}(X,W) \]
+  \[ \forall\, X, W \text{ with entries in } [-10,10].\quad P_{\text{unfused}}(X,W)\ \equiv\ P_{\text{fused}}(X,W) \]
   \begin{itemize}
     \item \textbf{Testing} under-approximates: it samples a finite input set.
     \item We want \textbf{exhaustive} equivalence over an input region, with
@@ -118,7 +118,7 @@
   (correctness depends on the OM's faithfulness) --- no separate spec to maintain.
   \begin{itemize}
     \item \textbf{Tensors} $\to$ nested lists; \textbf{ops} $\to$ operational model \texttt{torch.py}
-      (\texttt{mm/matmul/cat/split/allclose}), pure-Python, float-typed, FLAIL-baked.
+      (\texttt{mm/matmul/cat/split/allclose}), pure-Python, float-typed, compiled into the ESBMC binary.
     \item \textbf{Inputs} $\to$ symbolic \texttt{nondet\_float()} with \texttt{\_\_ESBMC\_assume} bounds
       (excludes NaN/Inf $\Rightarrow$ finite FP domain).
     \item \textbf{Shapes} $\to$ dimensions are \textbf{fixed and well-typed}; shape compatibility is assumed.
@@ -131,14 +131,16 @@
 % ---------------------------------------------------------------
 \begin{frame}[fragile]{The embedding (2/2): example harness}
   \begin{semiverbatim}\small
-X = [[bounded() for _ in range(D)] for _ in range(S)]  \# symbolic
-QKV = torch.mm(X, cat(Wq, Wk, Wv))                    \# operational model
+X   = [[bounded() for _ in range(D)] for _ in range(S)]    \# symbolic
+QKV = torch.mm(X, torch.cat([Wq, Wk, Wv], dim=1))         \# fused weight (cat, dim=1)
 assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
   \end{semiverbatim}
 
   \medskip
   Symbolic bounded inputs; the matmul goes through the operational model; the property
-  asserts exact (zero-tolerance) equivalence of the unfused and fused $Q$.
+  asserts exact (zero-tolerance) equivalence of the unfused and fused $Q$. \emph{(In the PoC,
+  \texttt{cat}/\texttt{split} are realised by manual column indexing --- \texttt{torch.cat}/\texttt{split}
+  are unwinding-heavy.)}
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -226,6 +228,30 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
     For ``is this fusion correct for the shapes we deploy?'', push-button BMC with bit-precise FP
     and counterexamples is highly effective in practice.
   \end{block}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Related work: translation validation (Alive2)}
+  The closest relative is \textbf{Alive2} (\texttt{alive2.llvm.org}) --- translation validation
+  for \textbf{LLVM IR} compiler optimisations. Same idea (prove-or-counterexample), one layer down.
+
+  \medskip
+  \begin{tabular}{@{}p{0.2\textwidth} p{0.36\textwidth} p{0.36\textwidth}@{}}
+    \toprule
+    & \textbf{Alive2} & \textbf{This work} \\
+    \midrule
+    Target & LLVM IR optimisations & PyTorch fusions/rewrites \\
+    Engine & SMT (Z3), \textbf{refinement} & ESBMC $\to$ SMT, \textbf{equivalence} \\
+    Hard semantics & \texttt{undef}/\texttt{poison}/UB & \textbf{bit-precise IEEE-754} FP \\
+    Verdict & refines / counterexample & proved / counterexample \\
+    Scope & per-function (no inter-proc.) & bounded, fixed shapes \\
+    \bottomrule
+  \end{tabular}
+
+  \medskip
+  {\footnotesize Different \emph{hard problem}: Alive2's is UB/poison refinement; ours is
+  floating-point (reassociation, rounding). Both are bounded/local --- the size-general theorem is
+  the ITP (Lean) end of the spectrum.}
 \end{frame}
 
 % ---------------------------------------------------------------
