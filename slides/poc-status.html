@@ -77,13 +77,13 @@
       <li>A rewrite that is <em>almost</em> identical can silently change the results.</li>
       <li>Silently wrong math → wrong predictions, bugs that are very hard to find.</li>
     </ul>
-    <blockquote>We want a way to be <strong>sure</strong>, not hopeful.</blockquote>
+    <blockquote>We want a way to be <strong>sure</strong>, not hopeful — to <strong>check an optimised version before it ships to production</strong>.</blockquote>
   </section>
 
   <section class="slide">
     <h2>Our example: the “QKV” step inside every Transformer</h2>
-    <p style="max-width:46ch">Attention models — the engine behind modern AI — build three things,
-      <strong>Q</strong>, <strong>K</strong>, <strong>V</strong>, from the input <code>X</code> using three weight matrices.</p>
+    <p style="max-width:50ch">Attention models — the <strong>Transformer</strong> design behind modern AI (e.g. ChatGPT) — build three things,
+      <strong>Q</strong>, <strong>K</strong>, <strong>V</strong> <em>(intermediate matrices that decide what the model “pays attention” to)</em>, from the input <code>X</code> using three weight matrices.</p>
     <p style="max-width:48ch"><b>The clear way</b> (unfused) — three separate matrix multiplications:</p>
     <pre>Q = X · Wq      K = X · Wk      V = X · Wv</pre>
     <p style="max-width:48ch"><b>The fast way</b> (fused) — glue the weights together, do <b>one</b> big multiply, then split:</p>
@@ -138,6 +138,7 @@
       <text class="op" x="520" y="316">split</text>
     </svg>
     <p style="margin-top:.3em">ESBMC proves these two produce <strong>the same result for every input we model</strong>.</p>
+    <blockquote>So: a <strong>faster implementation can be proven to behave exactly like the original</strong>.</blockquote>
   </section>
 
   <section class="slide">
@@ -150,11 +151,13 @@
       <li>A bug hiding in some other input is simply <strong>missed</strong>.</li>
       <li><strong>Passing tests ≠ correct.</strong></li>
     </ul>
+    <blockquote><strong>Testing gives confidence. Proof gives guarantees.</strong></blockquote>
   </section>
 
   <section class="slide">
     <h2>What we actually want: a proof, not a sample</h2>
-    <p style="max-width:46ch">Instead of trying a few inputs, check <strong>every input we model — all at once</strong> — mathematically.</p>
+    <p style="max-width:48ch">Instead of trying a few inputs, check <strong>every input we model — all at once</strong> — mathematically.</p>
+    <p class="muted small">“Model” here = a defined tensor size and a bounded input range — not arbitrarily large programs.</p>
     <p>Two possible outcomes:</p>
     <ul>
       <li><span class="ok">✅ <b>PROVEN equal</b></span> — guaranteed identical for <em>every</em> input in the model.</li>
@@ -168,16 +171,17 @@
     <p><strong>ESBMC</strong> is an automated <em>model checker</em>.</p>
     <ul>
       <li>It <b>reads the program</b> and turns the question <em>“are these two always equal?”</em> into one giant logic puzzle.</li>
-      <li>An automated <b>solver</b> then either finds an input that breaks it, or proves that <b>no such input exists</b> (within the model).</li>
+      <li>An automated <b>solver</b> <em>(a program that checks mathematical statements automatically)</em> then either finds an input that breaks it, or proves that <b>no such input exists</b> (within the model).</li>
     </ul>
     <blockquote><strong>Fully automated</strong> once the program is encoded — you write <strong>no</strong> proofs by hand.</blockquote>
+    <p class="muted small">The same kind of checking is <b>widely used in chip design and safety-critical software</b> (aerospace, automotive, medical).</p>
   </section>
 
   <section class="slide">
     <h2>The trick that turns a test into a proof</h2>
     <table>
       <tr><th>Ordinary test</th><th>Our verification</th></tr>
-      <tr><td>one <b>random</b> tensor <code>torch.randn(…)</code></td><td>a <b>symbolic</b> tensor = <em>any</em> numbers (bounded)</td></tr>
+      <tr><td>one <b>random</b> tensor <code>torch.randn(…)</code></td><td>a <b>symbolic</b> tensor — one value standing for <em>all possible inputs at once</em> (bounded)</td></tr>
       <tr><td>checks that one case</td><td>checks the <b>whole modelled range at once</b></td></tr>
       <tr><td>“looks fine”</td><td>a <b>guarantee — within the model</b></td></tr>
     </table>
@@ -188,7 +192,7 @@
   <section class="slide">
     <h2>Result: the example is PROVEN correct</h2>
     <ul>
-      <li><span class="ok">✅</span> Proven equal for <strong>all inputs we model</strong> — and <strong>bit-for-bit exact</strong> (IEEE-754), not a “close enough” tolerance.</li>
+      <li><span class="ok">✅</span> Proven equal for <strong>all inputs we model</strong> — and <strong>bit-for-bit exact</strong> (IEEE-754, the standard computer number format), not a “close enough” tolerance.</li>
       <li><span class="ok">✅</span> Done <b>two ways</b>: a plain-math encoding <b>and</b> the <em>real</em> <code>torch.mm</code> + <code>torch.allclose</code>.</li>
       <li><span class="ok">✅</span> When we <b>deliberately break it</b> (swap two columns), ESBMC <strong>catches it</strong> and shows the exact failing input.</li>
     </ul>
@@ -220,7 +224,7 @@
 
   <section class="slide">
     <h2>A bonus: we made the tool itself stronger</h2>
-    <p style="max-width:52ch">Real PyTorch-style code pushed ESBMC into territory it couldn’t yet handle — so we <strong>added what was missing</strong> (4 contributions merged upstream):</p>
+    <p style="max-width:52ch"><strong>In short: we taught ESBMC to understand PyTorch-style code</strong> — 4 contributions merged upstream:</p>
     <ul>
       <li>A <b><code>torch</code> operational model</b> — <code>mm</code>, <code>matmul</code>, <code>cat</code>, <code>split</code>, <code>allclose</code>.</li>
       <li>Fixes so <b>matrix math over nested lists works</b> — values/types survive function returns and copies.</li>
@@ -234,15 +238,15 @@
     <ul>
       <li><span class="ok">✅</span> Motivating <b>QKV</b> example <strong>fully supported</strong> (two encodings, exact proof).</li>
       <li><span class="ok">✅</span> Extended to a <b>second</b> class: bias-fused linear (<code>X·W + b</code>).</li>
-      <li>⏭️ <b>Bigger matrices</b> and fully native fuse/split — gated on <b>one</b> performance improvement upstream (see Performance, backup).</li>
+      <li>⏭️ Today this runs on <b>small examples</b>; scaling to large, real-world models is <b>ongoing work</b> (see Performance, backup).</li>
     </ul>
   </section>
 
   <section class="slide lead">
     <h2>Takeaway</h2>
-    <p style="max-width:44ch">We can <strong>prove</strong> — automatically, for <strong>every modelled input</strong> — that a fast PyTorch rewrite computes <strong>exactly</strong> the same result as the original.</p>
+    <p style="max-width:50ch"><strong>You can automatically check that a faster version of your code gives exactly the same result — before it ships and causes bugs.</strong></p>
     <blockquote style="max-width:46ch"><em>Testing samples. This proves — and when it can’t, it hands you the bug.</em></blockquote>
-    <p class="sub">Use it to gate fusions and compiler rewrites before they ship.</p>
+    <p class="muted small">For all inputs within a defined size and range · today on small examples · scaling is ongoing.</p>
   </section>
 
   <section class="slide appendix lead">

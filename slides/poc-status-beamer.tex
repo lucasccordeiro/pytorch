@@ -67,14 +67,16 @@
 
   \bigskip
   \begin{block}{}
-    \centering We want a way to be \textbf{sure}, not hopeful.
+    \centering We want a way to be \textbf{sure}, not hopeful --- to
+    \textbf{check an optimised version before it ships to production}.
   \end{block}
 \end{frame}
 
 % ---------------------------------------------------------------
 \begin{frame}{Our example: the ``QKV'' step inside every Transformer}
-  Attention models --- the engine behind modern AI --- build three things,
-  \textbf{Q}, \textbf{K}, \textbf{V}, from the input $X$ using three weight matrices.
+  Attention models --- the \textbf{Transformer} design behind modern AI (e.g.\ ChatGPT) ---
+  build three things, \textbf{Q}, \textbf{K}, \textbf{V} \emph{(intermediate matrices that
+  decide what the model ``pays attention'' to)}, from the input $X$ using three weight matrices.
 
   \bigskip
   \textbf{The clear way} (unfused) --- three separate matrix multiplications:
@@ -107,7 +109,7 @@
     \draw[arr] (xu) -- (K) node[op]{$\times W_k$};
     \node[above=1mm of V,text=accent,font=\footnotesize\bfseries] {Unfused: three matmuls};
 
-    \node[box,below=18mm of xu] (xf) {$X$};
+    \node[box,below=14mm of xu] (xf) {$X$};
     \node[box,right=16mm of xf] (W) {$W{=}[W_q|W_k|W_v]$};
     \node[box,right=14mm of W] (QKV) {$\mathit{QKV}$};
     \node[res,right=16mm of QKV] (Qf) {$Q$};
@@ -125,8 +127,9 @@
       {$\equiv$ \\ proven\\ equal};
   \end{tikzpicture}
 
-  \medskip
-  {\small ESBMC proves these two produce \textbf{the same result for every input we model}.}
+  \smallskip
+  {\small ESBMC proves these two produce \textbf{the same result for every input we model}.}\\
+  {\small\itshape So: a \textbf{faster implementation can be proven to behave exactly like the original}.}
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -142,11 +145,19 @@
     \item A bug hiding in some other input is simply \textbf{missed}.
     \item \textcolor{warn}{\textbf{Passing tests $\neq$ correct.}}
   \end{itemize}
+
+  \bigskip
+  \begin{block}{}
+    \centering \textbf{Testing gives confidence. Proof gives guarantees.}
+  \end{block}
 \end{frame}
 
 % ---------------------------------------------------------------
 \begin{frame}{What we actually want: a proof, not a sample}
   Instead of trying a few inputs, check \textbf{every input we model --- all at once} --- mathematically.
+
+  \smallskip
+  {\small\itshape ``Model'' here = a defined tensor size and a bounded input range --- not arbitrarily large programs.}
 
   \bigskip
   Two possible outcomes:
@@ -167,14 +178,19 @@
   \begin{enumerate}
     \item It \textbf{reads the program} and turns the question \emph{``are these two always
       equal?''} into one giant logic puzzle.
-    \item An automated \textbf{solver} then either finds an input that breaks it, or proves
-      that \textbf{no such input exists} (within the model).
+    \item An automated \textbf{solver} \emph{(a program that checks mathematical statements
+      automatically)} then either finds an input that breaks it, or proves that
+      \textbf{no such input exists} (within the model).
   \end{enumerate}
 
-  \bigskip
+  \medskip
   \begin{block}{}
     \centering \textbf{Fully automated} once the program is encoded --- you write \emph{no} proofs by hand.
   \end{block}
+
+  \smallskip
+  {\footnotesize The same kind of checking is \textbf{widely used in chip design and safety-critical
+  software} (aerospace, automotive, medical).}
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -184,7 +200,7 @@
     \toprule
     \textbf{Ordinary test} & \textbf{Our verification} \\
     \midrule
-    one \textbf{random} tensor \texttt{torch.randn(\dots)} & a \textbf{symbolic} tensor = \emph{any} numbers (bounded) \\[4pt]
+    one \textbf{random} tensor \texttt{torch.randn(\dots)} & a \textbf{symbolic} tensor --- one value standing for \emph{all possible inputs at once} (bounded) \\[4pt]
     checks that one case & checks the \textbf{whole modelled range at once} \\[4pt]
     ``looks fine'' & a \textbf{guarantee --- within the model} \\
     \bottomrule
@@ -201,7 +217,7 @@
 \begin{frame}{Result: the example is PROVEN correct}
   \begin{itemize}
     \item \good\ Proven equal for \textbf{all inputs we model} --- and \textbf{bit-for-bit exact}
-      (IEEE-754), not a ``close enough'' tolerance.
+      (IEEE-754, the standard computer number format), not a ``close enough'' tolerance.
     \item \good\ Done \textbf{two ways}: a plain-math encoding \emph{and} the real
       \texttt{torch.mm} {+} \texttt{torch.allclose}.
     \item \good\ When we \textbf{deliberately break it} (swap two columns), ESBMC
@@ -250,8 +266,8 @@
 
 % ---------------------------------------------------------------
 \begin{frame}{A bonus: we made the tool itself stronger}
-  Real PyTorch-style code pushed ESBMC into territory it could not yet handle ---
-  so we \textbf{added what was missing} (4 contributions merged upstream):
+  \textbf{In short: we taught ESBMC to understand PyTorch-style code} ---
+  4 contributions merged upstream:
 
   \bigskip
   \begin{itemize}
@@ -272,8 +288,8 @@
   \begin{itemize}
     \item \good\ Motivating \textbf{QKV} example \textbf{fully supported} (two encodings, exact proof).
     \item \good\ Extended to a \textbf{second} class: bias-fused linear ($X\,W + b$).
-    \item $\rightarrow$ \textbf{Bigger matrices} and fully native fuse/split --- gated on \textbf{one}
-      performance improvement upstream (see Performance, backup).
+    \item $\rightarrow$ Today this runs on \textbf{small examples}; scaling to large, real-world
+      models is \textbf{ongoing work} (see Performance, backup).
   \end{itemize}
 \end{frame}
 
@@ -285,14 +301,14 @@
   {\Large\textcolor{accent}{\textbf{Takeaway}}}
 
   \bigskip
-  We can \textbf{prove} --- automatically, for \textbf{every modelled input} ---
-  that a fast PyTorch rewrite computes \textbf{exactly} the same result as the original.
+  \textbf{You can automatically check that a faster version of your code gives exactly
+  the same result --- before it ships and causes bugs.}
 
   \bigskip
   \emph{Testing samples. This proves --- and when it can't, it hands you the bug.}
 
   \bigskip
-  \textbf{Use it to gate fusions and compiler rewrites before they ship.}
+  {\small For all inputs within a defined size and range $\cdot$ today on small examples $\cdot$ scaling is ongoing.}
   \vfill
 \end{frame}}
 
