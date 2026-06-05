@@ -20,25 +20,30 @@ the whole suite. The scalar targets require neither.
 
 | Target | `--unwind` | Expected | Verdict | Time |
 | --- | --- | --- | --- | --- |
-| `qkv_equivalence` | 8 | SUCCESSFUL | SUCCESSFUL | 11 s |
+| `qkv_equivalence_exact` | 8 | SUCCESSFUL | SUCCESSFUL | 6 s |
+| `qkv_equivalence` (tolerance) | 8 | SUCCESSFUL | SUCCESSFUL | 11 s |
 | `qkv_equivalence_buggy` | 8 | FAILED | FAILED | 242 s |
-| `qkv_equivalence_torch` | 4 | SUCCESSFUL | SUCCESSFUL | 110 s |
+| `qkv_equivalence_torch_exact` | 4 | SUCCESSFUL | SUCCESSFUL | 135 s |
+| `qkv_equivalence_torch` (tolerance) | 4 | SUCCESSFUL | SUCCESSFUL | 110 s |
 | `qkv_equivalence_torch_buggy` | 4 | FAILED | FAILED | 274 s |
-| `bias_linear` | 4 | SUCCESSFUL | SUCCESSFUL | 113 s |
+| `bias_linear` (tolerance) | 4 | SUCCESSFUL | SUCCESSFUL | 113 s |
 | `bias_linear_buggy` | 4 | FAILED | FAILED | 31 s |
 
-**6/6 targets behave as expected.** Each clean target verifies; each mutant is
+**8/8 targets behave as expected.** Each clean target verifies; each mutant is
 refuted with a concrete counterexample (the `_buggy` runs report a violated
 equivalence assertion, e.g. `qkv_equivalence_torch_buggy` violates
 `assert torch.allclose(Va, Vb)`), so the suite cannot pass vacuously.
 
 ## Notes on the numbers
 
-- **Exactness.** The clean proofs are FP-*exact* equality, not tolerance: the
-  fused column `QKV[:, j]` is the identical multiply–add sequence as the
-  corresponding unfused projection, so the two are bit-for-bit equal. The
-  scalar encoding additionally demonstrates the tolerance form
-  (`math.fabs(a-c) <= atol + rtol*|c|`).
+- **Exact and tolerance, both proved.** For QKV we verify the equivalence two
+  ways. The `_exact` targets assert **bit-for-bit equality** (scalar `==`;
+  torch `allclose(rtol=0, atol=0)`) — sound because the fused column
+  `QKV[:, j]` is the *identical* multiply–add sequence as the unfused
+  projection. The tolerance targets assert `torch.allclose`'s real predicate
+  (`|a-c| <= atol + rtol*|c|`, defaults `rtol=1e-5, atol=1e-8`), matching how
+  PyTorch users actually compare tensors. Exact is the stronger claim; both
+  hold here.
 - **Mutant timing varies.** Refuting an FP equivalence means the solver
   searches the floating-point input space for a distinguishing assignment. When
   the discrepancy is structural and easy to witness this is fast

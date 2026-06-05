@@ -16,6 +16,9 @@
 # ESBMC produce a wrong verdict, and one returning a float crashed the backend
 # (see ../AUDIT.md). math.fabs (the math OM intrinsic) is fine.
 #
+# This is the TOLERANCE variant (matches torch.allclose's rtol=1e-5, atol=1e-8).
+# The bit-for-bit-exact counterpart is qkv_equivalence_exact.py.
+#
 # Run: esbmc qkv_equivalence.py --unwind 8   (expect VERIFICATION SUCCESSFUL)
 
 import math
