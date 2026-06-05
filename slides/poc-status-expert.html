@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formal equivalence checking of PyTorch programs with ESBMC (expert)</title>
+<style>
+  :root{
+    --bg:#fbfbfd; --ink:#1d1d1f; --blue:#0b5cad; --red:#b3261e;
+    --muted:#8a8a8e; --panel:#eef2f7; --line:#d9e1ec;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);overflow:hidden}
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:5vh 8vw;animation:fade .35s ease}
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  h1{color:var(--blue);font-size:clamp(26px,4.4vw,46px);line-height:1.1;margin-bottom:.4em}
+  h2{color:var(--blue);font-size:clamp(22px,3.2vw,34px);margin-bottom:.5em}
+  h3{font-size:clamp(16px,2vw,24px);font-weight:600;color:#333;margin-bottom:.4em}
+  p{font-size:clamp(16px,1.95vw,24px);line-height:1.45;margin:.3em 0;max-width:60ch}
+  ul{margin:.3em 0 .3em 1.1em}
+  li{font-size:clamp(15px,1.85vw,22px);line-height:1.4;margin:.3em 0;max-width:62ch}
+  strong{color:var(--red)}
+  .lead{text-align:center;align-items:center}
+  .lead p{max-width:none}
+  .sub{color:#444;font-weight:600}
+  .muted{color:var(--muted)}
+  .small{font-size:clamp(12px,1.5vw,17px)}
+  .eq{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:clamp(16px,2vw,24px);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.5em .8em;display:inline-block;margin:.4em 0}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.7em 1em;
+    font-size:clamp(13px,1.7vw,20px);margin:.5em 0;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap}
+  blockquote{border-left:4px solid var(--blue);background:#eef4fb;border-radius:0 8px 8px 0;
+    padding:.5em 1em;margin:.5em 0;font-size:clamp(15px,1.9vw,23px);max-width:62ch}
+  table{border-collapse:collapse;margin:.4em 0;font-size:clamp(13px,1.65vw,20px)}
+  th,td{border:1px solid var(--line);padding:.4em .7em;text-align:left;vertical-align:top}
+  th{background:var(--panel);color:var(--blue)}
+  .ok{color:#1a7f37}.bad{color:#b3261e}
+  footer{position:fixed;bottom:12px;left:0;right:0;display:flex;justify-content:space-between;
+    padding:0 22px;color:var(--muted);font-size:13px;pointer-events:none}
+  .hint{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:12px}
+  .counter{font-variant-numeric:tabular-nums}
+  .nav{position:fixed;top:0;bottom:0;width:16vw;cursor:pointer;z-index:5}
+  .nav.left{left:0}.nav.right{right:0}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <section class="slide lead">
+    <h1>Formal equivalence checking of PyTorch programs with ESBMC</h1>
+    <h3 class="sub">BMC for fusion/rewrite correctness — and how the encoding compares to interactive proof</h3>
+    <p style="font-size:clamp(17px,2.1vw,26px);margin-top:.5em"><b>Lucas Cordeiro</b> · University of Manchester</p>
+    <p class="muted">Proof-of-concept · status update <em>(expert version)</em></p>
+  </section>
+
+  <section class="slide">
+    <h2>Problem &amp; threat model</h2>
+    <p>Optimising transformations — <strong>operator fusion, kernel rewrites, compiler passes</strong> — must be semantics-preserving. We decide:</p>
+    <p class="eq">∀ X, W ∈ range.&nbsp;&nbsp; P<sub>unfused</sub>(X,W) ≡ P<sub>fused</sub>(X,W)</p>
+    <ul>
+      <li><b>Testing</b> under-approximates: it samples a finite input set.</li>
+      <li>We want <b>exhaustive</b> equivalence over an input region, with <b>bit-precise IEEE-754</b> (where fusion breaks: reassociation, rounding, NaN/Inf).</li>
+      <li>Two verdicts: <b>proof</b> (UNSAT) or a <b>concrete counterexample</b> (SAT).</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <h2>Running example: QKV projection</h2>
+    <p class="eq">unfused:&nbsp; Q = X·Wq,&nbsp; K = X·Wk,&nbsp; V = X·Wv</p>
+    <p class="eq">fused:&nbsp; W = [Wq | Wk | Wv],&nbsp; QKV = X·W,&nbsp; split</p>
+    <p style="margin-top:.6em">The fused column <em>j</em> is the <strong>identical multiply–add sequence</strong> as the corresponding unfused projection ⇒ the two are equal <strong>bit-for-bit</strong> in IEEE-754, not merely within a tolerance. Both claims are checked.</p>
+  </section>
+
+  <section class="slide">
+    <h2>The two programs, side by side</h2>
+    <svg viewBox="0 0 980 410" style="width:min(90vw,980px);height:auto" font-family="inherit">
+      <defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3 L0,6 z" fill="#0b5cad"/></marker></defs>
+      <style>
+        .bx{fill:#eef2f7;stroke:#0b5cad;stroke-width:1.5}.rs{fill:#eaf6ee;stroke:#1a7f37;stroke-width:1.5}
+        .t{font-size:20px;fill:#1d1d1f}.op{font-size:15px;fill:#0b5cad;font-style:italic}
+        .cap{font-size:18px;fill:#0b5cad;font-weight:700}.ar{stroke:#0b5cad;stroke-width:2;fill:none;marker-end:url(#ah)}
+      </style>
+      <text class="cap" x="60" y="28">Unfused: three matmuls</text>
+      <text class="cap" x="600" y="398">Fused: one matmul + split</text>
+      <rect class="bx" x="40" y="80" width="64" height="46" rx="8"/><text class="t" x="72" y="109" text-anchor="middle">X</text>
+      <rect class="rs" x="330" y="44" width="56" height="40" rx="8"/><text class="t" x="358" y="70" text-anchor="middle">V</text>
+      <rect class="rs" x="330" y="104" width="56" height="40" rx="8"/><text class="t" x="358" y="130" text-anchor="middle">Q</text>
+      <rect class="rs" x="330" y="164" width="56" height="40" rx="8"/><text class="t" x="358" y="190" text-anchor="middle">K</text>
+      <path class="ar" d="M104,98 C200,80 250,70 330,64"/><path class="ar" d="M104,103 C210,110 250,118 330,124"/><path class="ar" d="M104,108 C200,150 250,170 330,184"/>
+      <text class="op" x="150" y="76">× Wv</text><text class="op" x="150" y="106">× Wq</text><text class="op" x="150" y="150">× Wk</text>
+      <rect x="444" y="118" width="96" height="60" rx="10" fill="#eaf6ee" stroke="#1a7f37" stroke-width="1.5"/>
+      <text x="492" y="142" text-anchor="middle" font-size="20" fill="#1a7f37" font-weight="700">≡</text>
+      <text x="492" y="164" text-anchor="middle" font-size="13" fill="#1a7f37" font-weight="700">bit-for-bit</text>
+      <rect class="bx" x="40" y="300" width="64" height="46" rx="8"/><text class="t" x="72" y="329" text-anchor="middle">X</text>
+      <rect class="bx" x="150" y="300" width="190" height="46" rx="8"/><text class="t" x="245" y="329" text-anchor="middle" font-size="17">W = [Wq | Wk | Wv]</text>
+      <rect class="bx" x="392" y="300" width="78" height="46" rx="8"/><text class="t" x="431" y="329" text-anchor="middle" font-size="18">QKV</text>
+      <rect class="rs" x="620" y="250" width="52" height="38" rx="8"/><text class="t" x="646" y="275" text-anchor="middle">V</text>
+      <rect class="rs" x="620" y="304" width="52" height="38" rx="8"/><text class="t" x="646" y="329" text-anchor="middle">Q</text>
+      <rect class="rs" x="620" y="358" width="52" height="38" rx="8"/><text class="t" x="646" y="383" text-anchor="middle">K</text>
+      <path class="ar" d="M104,323 L150,323"/><path class="ar" d="M340,323 L392,323"/>
+      <path class="ar" d="M470,318 C540,300 570,280 620,270"/><path class="ar" d="M470,323 L620,323"/><path class="ar" d="M470,328 C540,348 570,368 620,377"/>
+      <text class="op" x="112" y="316">concat</text><text class="op" x="350" y="316">X × W</text><text class="op" x="520" y="316">split</text>
+    </svg>
+  </section>
+
+  <section class="slide">
+    <h2>The embedding: how the program enters the verifier</h2>
+    <p>The harness <strong>is</strong> the program — no separate spec to maintain.</p>
+    <ul>
+      <li><b>Tensors</b> → nested lists; <b>ops</b> → operational model <code>torch.py</code> (<code>mm/matmul/cat/split/allclose</code>), pure-Python, float-typed, FLAIL-baked.</li>
+      <li><b>Inputs</b> → symbolic <code>nondet_float()</code> with <code>__ESBMC_assume</code> bounds (excludes NaN/Inf).</li>
+      <li><b>Property</b> → exact (<code>==</code> / <code>allclose(rtol=0, atol=0)</code>) or tolerance (<code>allclose</code> defaults).</li>
+      <li><b>Two encodings</b>: scalar-unrolled (no OM) <b>and</b> torch-native.</li>
+    </ul>
+    <pre>X = [[bounded() for _ in range(D)] for _ in range(S)]   # symbolic, bounded
+QKV = torch.mm(X, cat_cols(Wq, Wk, Wv))                # operational model
+assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
+  </section>
+
+  <section class="slide">
+    <h2>Pipeline &amp; soundness</h2>
+    <p>Python frontend → <b>GOTO</b> → symbolic execution → <b>VCs</b> → SMT.</p>
+    <ul>
+      <li>Fixed dims ⇒ loops fully unwound; <b>unwinding assertions ON</b> (no vacuous SUCCESS on truncation). Symbolic dims ⇒ <code>--k-induction</code> with convergence.</li>
+      <li><b>Bit-precise IEEE-754</b> FP theory (Bitwuzla / Z3); rounding modelled, not abstracted.</li>
+      <li><b>UNSAT ⇒ proved</b> over the region; <b>SAT ⇒ the falsifying assignment</b>.</li>
+      <li>TCB: Python frontend + operational model + SMT solver.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <h2>Results</h2>
+    <p class="small"><strong>8 / 8</strong> — QKV proved <em>exact</em> and <em>tolerance</em>, in <em>scalar</em> and <em>torch-native</em> encodings; each clean target paired with a refuted mutant (Bitwuzla, fixed dims).</p>
+    <table>
+      <tr><th>Target</th><th>predicate</th><th>verdict</th><th>time</th></tr>
+      <tr><td><code>qkv_equivalence_exact</code></td><td>scalar <code>==</code></td><td class="ok">SUCCESSFUL</td><td>6 s</td></tr>
+      <tr><td><code>qkv_equivalence</code></td><td>scalar tolerance</td><td class="ok">SUCCESSFUL</td><td>12 s</td></tr>
+      <tr><td><code>qkv_equivalence_torch_exact</code></td><td><code>allclose(0,0)</code></td><td class="ok">SUCCESSFUL</td><td>122 s</td></tr>
+      <tr><td><code>qkv_equivalence_torch</code></td><td><code>allclose</code> defaults</td><td class="ok">SUCCESSFUL</td><td>124 s</td></tr>
+      <tr><td><code>*_buggy</code> (×3)</td><td>refutation</td><td class="bad">FAILED + c.ex.</td><td>35–338 s</td></tr>
+      <tr><td><code>bias_linear</code> (+buggy)</td><td><code>X·W+b ≡ [X|1]·[W;b]</code></td><td>SUCCESSFUL / FAILED</td><td>35–135 s</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <h2>The embedding was <em>not</em> free</h2>
+    <p>Driving real PyTorch-style code through ESBMC required fixing the embedding path — <strong>4 contributions merged upstream</strong>:</p>
+    <ul>
+      <li>A <b><code>torch</code> operational model</b> (#5120).</li>
+      <li><b>Nested-list value/type across returns &amp; copies</b> (#5111, #5113; fixes #5102/#5103).</li>
+      <li><b>Homogeneous nested-list FP element-type</b> (#5131; fixes #5129) — found, root-caused, and fixed by this PoC.</li>
+    </ul>
+    <blockquote>The <em>embedding cost</em> here was partly tool-engineering — now amortised for everyone.</blockquote>
+  </section>
+
+  <section class="slide">
+    <h2>ESBMC (BMC) vs Lean (ITP) + LLM agent</h2>
+    <table>
+      <tr><th>Aspect</th><th>ESBMC (BMC)</th><th>Lean (ITP) + LLM agent</th></tr>
+      <tr><td>Embedding effort</td><td>program <b>is</b> the spec (write both, assert ≡)</td><td>embed tensor + FP semantics, <b>state</b> the theorem</td></tr>
+      <tr><td>Automation</td><td>push-button: auto VC-gen + SMT</td><td>interactive; agent drives tactic search, proofs need guidance</td></tr>
+      <tr><td>FP semantics</td><td><b>bit-precise IEEE-754</b> native</td><td>modelled/axiomatised; bit-level reasoning heavy</td></tr>
+      <tr><td>Counterexamples</td><td><b>concrete falsifying input</b> (SAT)</td><td>none by default</td></tr>
+      <tr><td>Scope</td><td><b>bounded</b> (fixed sizes)</td><td><b>unbounded / size-general</b></td></tr>
+      <tr><td>TCB</td><td>frontend + OM + solver</td><td>small proof kernel</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <h2>When to use which</h2>
+    <ul>
+      <li><b>Gate rewrites with BMC (ESBMC):</b> automatic, bit-precise, bug-finding, on concrete shapes — fast CI feedback, and a <em>counterexample</em> when it breaks.</li>
+      <li><b>Reach for ITP (Lean) for the size-general law:</b> ∀ shapes, machine-checked.</li>
+      <li>They <b>compose</b>: BMC to find bugs and certify shipped configurations; ITP for the general theorem — where the <b>encoding + proof effort</b> and the <b>lack of FP counterexamples</b> is the real cost.</li>
+    </ul>
+    <blockquote>For “is this fusion correct for the shapes we deploy?”, push-button BMC with bit-precise FP and counterexamples is hard to beat.</blockquote>
+  </section>
+
+  <section class="slide">
+    <h2>Status · what’s next</h2>
+    <ul>
+      <li><span class="ok">✅</span> QKV fully verified (exact + tolerance, 2 encodings); bias-fused linear added.</li>
+      <li>⏭️ <b>Scale</b>: larger/symbolic dims via k-induction; native <code>cat</code>/<code>split</code> (currently unwinding-heavy, #5121).</li>
+      <li>⏭️ A like-for-like <b>Lean + agent</b> encoding of the same equivalence, to quantify the encoding/proof effort empirically.</li>
+    </ul>
+  </section>
+
+  <section class="slide lead">
+    <h2>Summary</h2>
+    <p style="max-width:60ch">Bounded model checking gives an <strong>automatic, bit-precise, counterexample-producing</strong> equivalence check for PyTorch rewrites — at the cost of being <strong>bounded</strong>.</p>
+    <blockquote style="max-width:60ch">The encoding cost is low (the program is the spec) once the operational model exists; interactive proof buys generality at a higher encoding/proof cost and <strong>no counterexamples</strong>.</blockquote>
+  </section>
+
+</div>
+
+<div class="nav left" onclick="go(-1)"></div>
+<div class="nav right" onclick="go(1)"></div>
+<footer><span>PyTorch · ESBMC equivalence PoC — expert</span><span class="counter" id="counter"></span></footer>
+<div class="hint">← → or space · F for fullscreen</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  function show(n){i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    document.getElementById('counter').textContent=(i+1)+' / '+slides.length;location.hash=i+1;}
+  function go(d){show(i+d)}
+  addEventListener('keydown',e=>{
+    if(['ArrowRight',' ','PageDown'].includes(e.key)){go(1);e.preventDefault();}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){go(-1);e.preventDefault();}
+    else if(e.key==='Home'){show(0);}else if(e.key==='End'){show(slides.length-1);}
+    else if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+  });
+  show(parseInt(location.hash.slice(1))-1||0);
+</script>
+</body>
+</html>
