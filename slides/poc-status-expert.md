@@ -188,12 +188,13 @@ Same QKV equivalence in **Lean 4** (no Mathlib, ~30 LOC; agent = LLM-authored pr
 - A **reassociating** fusion is sound over ℤ/ℝ (`omega`/`ring`) but **false in Float**: Lean
   cannot prove it and returns **no counterexample** (only `rfl failed`); ESBMC synthesises the witness.
 
-| | **Lean (ITP)** | **ESBMC (BMC)** |
-| --- | --- | --- |
-| Order-preserving QKV | `rfl`, ∀ dims, ~5 s | per-shape, bit-FP, ~110 s |
-| Reassociating fusion | unsound for FP, **no c.ex.** | **finds FP counterexample** |
+| | **Lean** | **ESBMC `--ir`** | **ESBMC `--floatbv`** |
+| --- | --- | --- | --- |
+| Arithmetic | reals (no FP) | reals (FP abstracted) | **bit-precise IEEE-754** |
+| Order-preserving QKV | `rfl`, ∀ dims, ~5 s | bounded, ~3 s | bounded, ~6–110 s |
+| Reassociation / c.ex. | no c.ex. | FP-blind, real c.ex. | **finds FP counterexample** |
 
-ITP wins generality; BMC wins bit-precise FP + counterexamples — complementary. *(ESBMC's `--ir` reaches ~3 s on the scalar proof, ≈ Lean, but abstracts FP and diverges on refutation/OM. Artefact + numbers: `lean/`.)*
+ITP wins generality; `--ir` matches Lean's reals & speed; **`--floatbv` wins bit-precise FP + counterexamples**. *(Artefact + numbers: `lean/`.)*
 
 ---
 
