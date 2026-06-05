@@ -1,107 +1,90 @@
-# Formal equivalence checking of two PyTorch programs with ESBMC — PoC
+# PyTorch ESBMC equivalence-verification PoC
 
-Proof of concept for proving that two PyTorch programs compute the same result,
-using the [ESBMC](https://github.com/esbmc/esbmc) bounded model checker's Python
-frontend.
+A proof-of-concept applying [ESBMC](https://github.com/esbmc/esbmc)'s Python
+frontend to **formal equivalence of two PyTorch programs** — proving that a
+fused and an unfused implementation of the same computation produce identical
+results for *all* admissible inputs, not just one random sample.
 
-## The example
+Driving example (from Eduardo Valentin): the **QKV projection** in attention.
 
-A self-attention QKV projection written two ways.
+```python
+# A (unfused)              # B (fused)
+Q = X @ Wq                 W   = cat([Wq, Wk, Wv], dim=1)
+K = X @ Wk                 QKV = X @ W
+V = X @ Wv                 Q, K, V = split(QKV, ...)
+```
 
-- **Program A (unfused)** — three independent matmuls:
-  `Q = X @ Wq`, `K = X @ Wk`, `V = X @ Wv`.
-- **Program B (fused)** — concatenate the weights, one matmul, then split:
-  `W = cat([Wq, Wk, Wv], dim=1)`, `QKV = X @ W`, `Q, K, V = split(QKV)`.
+The original harness compared one `torch.randn` sample with `torch.allclose`.
+Here every input is a **bounded nondeterministic float**, so a
+`VERIFICATION SUCCESSFUL` is a proof of equivalence over the whole input range.
 
-The original script compared **one random sample** with `torch.allclose(...)` and
-printed whether they matched. This PoC turns that runtime spot-check into a
-**formal proof over all admissible inputs**.
+## Status
 
-## Approach
+**4 verification targets**, two clean / `_buggy` pairs, two encodings of the
+same QKV equivalence:
 
-1. **Inputs become symbolic.** `torch.randn(...)` → bounded `nondet_float()`,
-   with `__ESBMC_assume(-10.0 <= v <= 10.0)` per element. ESBMC then explores
-   *every* input in that range, not one sample.
-   - The bound is **mandatory**: unconstrained `nondet_float()` admits `NaN`,
-     and `NaN == NaN` is `False`, so the equivalence assertion would fail
-     spuriously. (`assert nondet_float() == itself` → VERIFICATION FAILED.)
-2. **The linear algebra is scalar-unrolled.** Matrix elements are kept in named
-   scalar variables instead of Python lists, because ESBMC's Python *list* model
-   cannot yet carry matrix elements through a matmul (see `bugs/`).
-3. **`torch.allclose` is modelled explicitly** as the element-wise predicate
-   `|a - c| <= atol + rtol*|c|` with torch's defaults (`rtol=1e-5`, `atol=1e-8`),
-   using `math.fabs` and **inlined at each assertion** — it must not be factored
-   into a Python helper function (see `bugs/bug2`, `bugs/bug3`).
-4. **The proof obligation** is `assert allclose(A_elt, B_elt)` for every element
-   of Q, K, V.
+| Target | Encoding | Verdict |
+| --- | --- | --- |
+| `qkv_equivalence` | scalar-unrolled (no torch OM) | SUCCESSFUL |
+| `qkv_equivalence_buggy` | scalar, K reads V's columns | FAILED |
+| `qkv_equivalence_torch` | **torch-native** (`torch.mm` + `torch.allclose`) | SUCCESSFUL |
+| `qkv_equivalence_torch_buggy` | torch, split swaps K/V | FAILED |
 
-Because the fused matmul performs the *identical* multiply–add sequence per
-output column as the unfused projection, the two are in fact **bit-exact** equal,
-so the tolerance predicate holds trivially — and an exact `==` variant also
-verifies (and is much faster for the solver).
+Each clean target proves the fused/unfused outputs **FP-exactly** equal (the
+fused column is the identical multiply–add sequence as the unfused projection,
+so equality is exact, stronger than `torch.allclose`'s tolerance). Each mutant
+is refuted with a counterexample — so the suite cannot pass vacuously. Full
+results and timings in [`REPORT.md`](./REPORT.md).
 
-## Files
+The torch-native targets are the headline: they exercise the **torch
+operational model** merged into ESBMC ([esbmc#5120](https://github.com/esbmc/esbmc/pull/5120))
+together with the nested-list element-type fix
+([esbmc#5131](https://github.com/esbmc/esbmc/pull/5131), merged; Fixes
+[esbmc#5129](https://github.com/esbmc/esbmc/issues/5129)) that this PoC
+surfaced. Both are on ESBMC `master`, so a current build runs the whole suite;
+the scalar encoding needs neither and is the portable baseline.
 
-| File | What it is | Expected verdict |
-|---|---|---|
-| `qkv_equiv.py` | The PoC: fused-vs-unfused QKV, `allclose` tolerance | `VERIFICATION SUCCESSFUL` |
-| `qkv_equiv_fail.py` | Mutant: `split` takes K from the wrong (V) columns | `VERIFICATION FAILED` + counterexample |
+## ESBMC contributions surfaced by this PoC
+
+Driving the equivalence proof through ESBMC's Python list model exposed a chain
+of frontend defects; several are now fixed upstream. Full ledger in
+[`AUDIT.md`](./AUDIT.md).
+
+- **Merged:** nested-list cross-function return value/type
+  ([#5111](https://github.com/esbmc/esbmc/pull/5111), fixes #5102/#5103),
+  list-copy element corruption ([#5113](https://github.com/esbmc/esbmc/pull/5113)),
+  the torch operational model ([#5120](https://github.com/esbmc/esbmc/pull/5120)),
+  homogeneous nested-list element-type resolution
+  ([#5131](https://github.com/esbmc/esbmc/pull/5131), fixes #5129).
+- **Open issues:** numpy symbolic matmul bounds (#5115), nested-list matmul
+  SMT SIGABRT (#5116), nested-list perf (#5121), double-subscript-binop parse
+  SIGABRT (#5122).
 
 ## Running
 
-```sh
-esbmc qkv_equiv.py      --unwind 8     # SUCCESSFUL  (Bitwuzla default; FP tolerance is solver-heavy)
-esbmc qkv_equiv_fail.py --unwind 8     # FAILED, with a concrete counterexample
+```bash
+# Point ESBMC at a current master build (>= esbmc#5131, which also includes
+# the torch OM esbmc#5120 — both needed for the torch-native targets):
+make verify ESBMC=/path/to/esbmc/build/src/esbmc/esbmc
+
+# Or a single target:
+ESBMC=/path/to/esbmc python3 verify.py qkv_equivalence_torch
 ```
 
-Soundness notes:
-- Use `--unwind` ≥ the largest loop bound **with unwinding assertions ON**.
-  Pairing `--no-unwinding-assertions` with a short `--unwind` silently truncates
-  loops and yields a *vacuous* SUCCESSFUL.
-- An exact-equality variant (`assert A == B`) verifies in seconds and is the
-  recommended smoke test; the tolerance variant is the faithful `allclose` model.
+`verify.py` runs ESBMC on each `harness/<name>.py` and checks the verdict
+against the manifest. See [`ROADMAP.md`](./ROADMAP.md) for planned targets and
+[`RETROSPECTIVE.md`](./RETROSPECTIVE.md) for the modelling pitfalls (NaN, loop
+truncation, tolerance predicates, `cat`/`split` cost) learned along the way.
 
-### Choosing the verification strategy
+## Layout
 
-For **fixed dimensions** (as in `qkv_equiv.py`), every loop has a constant,
-statically-known bound, so full unrolling is a *complete* proof — not a bounded
-approximation:
-
-- **`--unwind N` (N ≥ largest loop bound) with unwinding assertions on** — the
-  recommended choice. The unwinding-assertion check is what certifies that no
-  loop was truncated, so a SUCCESSFUL result is a real proof.
-- **`--incremental-bmc`** — equally sound and more ergonomic: it raises the
-  bound automatically until the unwinding assertions hold, so you don't have to
-  compute the maximum loop bound by hand (it removes the "did I pick a big
-  enough `--unwind`?" footgun). Slightly slower, same guarantee.
-- **`--k-induction` / `--k-induction-parallel`** — *not* needed here. These
-  prove properties of **unbounded** loops by induction; after fully unrolling
-  constant-bound loops there is nothing to induct over, so they add machinery
-  for no gain (and tend not to converge on nested matmul loops without supplied
-  invariants).
-
-To prove equivalence for **arbitrary dimensions** (symbolic `SEQ_LEN/D/H`, i.e.
-a single size-independent result rather than one proof per size), the loops
-become symbolically bounded and `--unwind` can no longer be complete. That is
-exactly where **`--k-induction-parallel`** belongs — with the caveat that
-matmul's nested loops generally need loop invariants to converge.
-
-## ESBMC defects found while building this PoC
-
-See `bugs/` — four reproducers, each independently confirmed on ESBMC 8.3.0:
-
-1. `bug1_nestedlist_matmul.py` — nested-list matmul returns a **wrong value**
-   (integer self-identity `R[0][0] == a*b` reports FAILED).
-2. `bug1b_nestedlist_float_crash.py` — the float variant **crashes the SMT
-   backend** (Bitwuzla `smt_sort.h:123`; Z3 `rm and fp sorts expected`).
-3. `bug2_userfn_float_compare.py` — a user-defined **float-returning** function
-   used in an FP comparison **crashes the backend** (`smt_ast.h:111` /
-   `Projecting from non-tuple based AST`; Z3 `z3++.h:1855`).
-4. `bug3_userfn_bool_compare.py` — a user-defined function that **returns a
-   float comparison (bool)** produces a **wrong verdict** (FAILED where the
-   inlined predicate verifies SUCCESSFUL). Likely the same root as #3.
-
-These are why the PoC unrolls to scalars and inlines the `math.fabs` predicate.
-Fixing #1 would let the natural, list/tensor-shaped code be verified directly; a
-`torch` operational model (mapping `torch.mm/cat/split` onto the numpy OM, which
-today lacks `concatenate`/`split`) is the larger follow-up.
+```
+harness/
+  stubs.py                         shared bounded-nondet-float helper
+  qkv_equivalence.py               scalar-unrolled QKV equivalence  (+ _buggy)
+  qkv_equivalence_torch.py         torch-native QKV equivalence     (+ _buggy)
+  esbmc_defects/                   minimal reproducers for the ESBMC bugs found
+verify.py                          suite driver
+Makefile                           `make verify`
+README / REPORT / AUDIT / ROADMAP / RETROSPECTIVE.md
+```
