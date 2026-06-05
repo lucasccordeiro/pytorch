@@ -54,13 +54,13 @@
   \begin{itemize}
     \item \textbf{Testing} under-approximates: it samples a finite input set.
     \item We want \textbf{exhaustive} equivalence over an input region, with
-      \textbf{bit-precise IEEE-754} (where fusion breaks: reassociation, rounding, NaN/Inf).
+      \textbf{bit-precise IEEE-754} (where fusion breaks: reassociation, rounding).
     \item Two verdicts: \textbf{proof} (UNSAT) or a \textbf{concrete counterexample} (SAT).
   \end{itemize}
   \medskip
-  {\footnotesize Checked under a \textbf{sequential IEEE-754 semantics} (the operational model).
-  \textbf{Not modelled:} backend-specific optimisations (FMA, cuBLAS), parallel/tree reductions,
-  non-deterministic scheduling.}
+  {\footnotesize Checked under a \textbf{sequential IEEE-754 semantics}; inputs are bounded, so
+  \textbf{NaN/Inf are excluded} --- equivalence is proven over finite FP domains.
+  \textbf{Not modelled:} backend optimisations (FMA, cuBLAS), parallel/tree reductions, scheduling.}
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -120,7 +120,8 @@
     \item \textbf{Tensors} $\to$ nested lists; \textbf{ops} $\to$ operational model \texttt{torch.py}
       (\texttt{mm/matmul/cat/split/allclose}), pure-Python, float-typed, FLAIL-baked.
     \item \textbf{Inputs} $\to$ symbolic \texttt{nondet\_float()} with \texttt{\_\_ESBMC\_assume} bounds
-      (excludes NaN/Inf).
+      (excludes NaN/Inf $\Rightarrow$ finite FP domain).
+    \item \textbf{Shapes} $\to$ dimensions are \textbf{fixed and well-typed}; shape compatibility is assumed.
     \item \textbf{Property} $\to$ exact (\texttt{==} / \texttt{allclose(rtol=0,atol=0)}) or tolerance
       (\texttt{allclose} defaults).
     \item \textbf{Two encodings}: scalar-unrolled (no OM) \emph{and} torch-native.
@@ -150,7 +151,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
     \item \textbf{UNSAT $\Rightarrow$ proved} over the region; \textbf{SAT $\Rightarrow$ falsifying assignment}.
     \item TCB: Python frontend $+$ operational model $+$ SMT solver.
     \item \textbf{Not modelled}: backend-specific optimisations (FMA, parallel/tree reductions,
-      cuBLAS) --- we verify the reference operational semantics, not a specific GPU kernel.
+      cuBLAS). \textbf{Intended use: reference-semantics equivalence}, not production-kernel equivalence.
   \end{itemize}
 \end{frame}
 

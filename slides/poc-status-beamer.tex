@@ -340,7 +340,8 @@
   \textbf{What we model / bound}
   \begin{itemize}
     \item \textbf{Fixed tensor sizes} (bounded model checking; concrete, e.g. $S{=}1, D{=}2, H{=}1$).
-    \item \textbf{Inputs bounded} to a finite range, which excludes \texttt{NaN}/\texttt{Inf}.
+    \item \textbf{Inputs bounded} to a finite range, which excludes \texttt{NaN}/\texttt{Inf}
+      --- so equivalence is proven over finite, well-defined FP domains.
   \end{itemize}
 
   \textbf{What we do \emph{not} claim:} arbitrary/symbolic sizes $\cdot$ performance equivalence

@@ -236,7 +236,7 @@ For all inputs within a defined size and range · today on small examples · sca
 **What we model / bound**
 
 - **Fixed tensor sizes** (bounded model checking; sizes are concrete, e.g. `S=1, D=2, H=1`).
-- **Inputs bounded** to a finite range, which excludes `NaN`/`Inf`.
+- **Inputs bounded** to a finite range, which excludes `NaN`/`Inf` — so equivalence is proven over finite, well-defined FP domains.
 
 **What we do *not* claim**
 

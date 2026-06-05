@@ -40,10 +40,10 @@ $$\forall\, X, W \in \text{range}.\quad P_{\text{unfused}}(X,W) \equiv P_{\text{
 
 - **Testing** under-approximates: it samples a finite input set.
 - We want **exhaustive** equivalence over an input region, with **bit-precise IEEE-754**
-  semantics (where fusion actually breaks: reassociation, rounding, NaN/Inf).
+  semantics (where fusion actually breaks: reassociation, rounding).
 - Two verdicts: **proof** (UNSAT) or a **concrete counterexample** (SAT).
 
-*Checked under a **sequential IEEE-754 semantics** (the operational model). **Not modelled:** backend-specific optimisations (FMA, cuBLAS), parallel/tree reductions, non-deterministic scheduling.*
+*Checked under a **sequential IEEE-754 semantics**; inputs are bounded, so **NaN/Inf are excluded** — equivalence is proven over finite FP domains. **Not modelled:** backend optimisations (FMA, cuBLAS), parallel/tree reductions, non-deterministic scheduling.*
 
 ---
 
@@ -86,7 +86,8 @@ The program **acts as the specification** under the assumed operational model
   (`mm`, `matmul`, `cat`, `split`, `allclose`) — pure-Python, float-typed reference
   semantics, FLAIL-baked into ESBMC.
 - **Inputs** → symbolic `nondet_float()` with `__ESBMC_assume` range bounds
-  (excludes NaN/Inf).
+  (excludes NaN/Inf ⇒ finite FP domain).
+- **Shapes** → dimensions are **fixed and well-typed**; shape compatibility is assumed.
 - **Property** → an assertion: exact (`==` / `allclose(rtol=0, atol=0)`) or
   tolerance (`allclose` defaults `1e-5/1e-8`).
 - **Two encodings**: scalar-unrolled (no OM) **and** torch-native (through the OM).
@@ -115,7 +116,7 @@ Python frontend → **GOTO** → symbolic execution → **VCs** → SMT.
 - **Bit-precise IEEE-754** in the FP theory (Bitwuzla / Z3); rounding is modelled, not abstracted.
 - **UNSAT ⇒ proved** over the region; **SAT ⇒ the falsifying assignment** is reported.
 - TCB: the Python frontend + operational model + SMT solver.
-- **Not modelled**: backend-specific optimisations (FMA, parallel/tree reductions, cuBLAS) — we verify the reference operational semantics, not a specific GPU kernel.
+- **Not modelled**: backend-specific optimisations (FMA, parallel/tree reductions, cuBLAS). **Intended use: reference-semantics equivalence**, not production-kernel equivalence.
 
 ---
 
