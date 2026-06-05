@@ -61,6 +61,24 @@ These **should** give identical results. The question: do they — *always*?
 
 ---
 
+## The two programs, side by side
+
+```
+  UNFUSED  (three matmuls)              FUSED  (one matmul + split)
+
+         ┌── × Wq ──▶ Q                 X ─▶ W=[Wq|Wk|Wv] ─▶ X·W ─▶ QKV
+   X ────┼── × Wk ──▶ K                                            │
+         └── × Wv ──▶ V                                     split ─┼─▶ Q
+                                                                   ├─▶ K
+                                                                   └─▶ V
+
+                    ≡   proven equal for every input
+```
+
+ESBMC proves these two produce **the same result for every input**.
+
+---
+
 ## How we check today: we test
 
 We run the program on a **handful of example inputs** and compare.
@@ -95,7 +113,7 @@ Either way, you learn something certain.
 2. An automated **solver** then either finds an input that breaks it,
    or proves that **no such input exists**.
 
-You don't write any proofs by hand — it is **push-button**.
+You write **no** proofs by hand — it is **push-button**.
 
 ---
 

@@ -87,6 +87,59 @@
   </section>
 
   <section class="slide">
+    <h2>The two programs, side by side</h2>
+    <svg viewBox="0 0 980 410" style="width:min(92vw,1000px);height:auto;margin-top:.2em" font-family="inherit">
+      <defs>
+        <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L7,3 L0,6 z" fill="#0b5cad"/>
+        </marker>
+      </defs>
+      <style>
+        .bx{fill:#eef2f7;stroke:#0b5cad;stroke-width:1.5;rx:8}
+        .rs{fill:#eaf6ee;stroke:#1a7f37;stroke-width:1.5;rx:8}
+        .t{font-size:20px;fill:#1d1d1f}
+        .op{font-size:15px;fill:#0b5cad;font-style:italic}
+        .cap{font-size:18px;fill:#0b5cad;font-weight:700}
+        .ar{stroke:#0b5cad;stroke-width:2;fill:none;marker-end:url(#ah)}
+      </style>
+      <!-- captions -->
+      <text class="cap" x="60"  y="28">Unfused: three matmuls</text>
+      <text class="cap" x="600" y="398">Fused: one matmul + split</text>
+      <!-- UNFUSED (top) -->
+      <rect class="bx" x="40"  y="80"  width="64" height="46" rx="8"/><text class="t" x="72" y="109" text-anchor="middle">X</text>
+      <rect class="rs" x="330" y="44"  width="56" height="40" rx="8"/><text class="t" x="358" y="70"  text-anchor="middle">V</text>
+      <rect class="rs" x="330" y="104" width="56" height="40" rx="8"/><text class="t" x="358" y="130" text-anchor="middle">Q</text>
+      <rect class="rs" x="330" y="164" width="56" height="40" rx="8"/><text class="t" x="358" y="190" text-anchor="middle">K</text>
+      <path class="ar" d="M104,98  C200,80 250,70 330,64"/>
+      <path class="ar" d="M104,103 C210,110 250,118 330,124"/>
+      <path class="ar" d="M104,108 C200,150 250,170 330,184"/>
+      <text class="op" x="150" y="76">× Wv</text>
+      <text class="op" x="150" y="106">× Wq</text>
+      <text class="op" x="150" y="150">× Wk</text>
+      <!-- equivalence badge -->
+      <rect x="446" y="120" width="92" height="56" rx="10" fill="#eaf6ee" stroke="#1a7f37" stroke-width="1.5"/>
+      <text x="492" y="144" text-anchor="middle" font-size="20" fill="#1a7f37" font-weight="700">≡</text>
+      <text x="492" y="166" text-anchor="middle" font-size="14" fill="#1a7f37" font-weight="700">proven equal</text>
+      <!-- FUSED (bottom) -->
+      <rect class="bx" x="40"  y="300" width="64" height="46" rx="8"/><text class="t" x="72" y="329" text-anchor="middle">X</text>
+      <rect class="bx" x="150" y="300" width="190" height="46" rx="8"/><text class="t" x="245" y="329" text-anchor="middle" font-size="17">W = [Wq | Wk | Wv]</text>
+      <rect class="bx" x="392" y="300" width="78" height="46" rx="8"/><text class="t" x="431" y="329" text-anchor="middle" font-size="18">QKV</text>
+      <rect class="rs" x="620" y="250" width="52" height="38" rx="8"/><text class="t" x="646" y="275" text-anchor="middle">V</text>
+      <rect class="rs" x="620" y="304" width="52" height="38" rx="8"/><text class="t" x="646" y="329" text-anchor="middle">Q</text>
+      <rect class="rs" x="620" y="358" width="52" height="38" rx="8"/><text class="t" x="646" y="383" text-anchor="middle">K</text>
+      <path class="ar" d="M104,323 L150,323"/>
+      <path class="ar" d="M340,323 L392,323"/>
+      <path class="ar" d="M470,318 C540,300 570,280 620,270"/>
+      <path class="ar" d="M470,323 L620,323"/>
+      <path class="ar" d="M470,328 C540,348 570,368 620,377"/>
+      <text class="op" x="112" y="316">concat</text>
+      <text class="op" x="350" y="316">X × W</text>
+      <text class="op" x="520" y="316">split</text>
+    </svg>
+    <p style="margin-top:.3em">ESBMC proves these two produce <strong>the same result for every input</strong>.</p>
+  </section>
+
+  <section class="slide">
     <h2>How we check today: we test</h2>
     <p>We run the program on a <strong>handful of example inputs</strong> and compare.</p>
     <p class="big-emoji">🥄</p>
@@ -116,7 +169,7 @@
       <li>It <b>reads the program</b> and turns the question <em>“are these two always equal?”</em> into one giant logic puzzle.</li>
       <li>An automated <b>solver</b> then either finds an input that breaks it, or proves that <b>no such input exists</b>.</li>
     </ul>
-    <blockquote>You don’t write any proofs by hand — it is <strong>push-button</strong>.</blockquote>
+    <blockquote>You write <strong>no</strong> proofs by hand — it is <strong>push-button</strong>.</blockquote>
   </section>
 
   <section class="slide">

@@ -1,17 +1,28 @@
 # Slides
 
-A non-expert-friendly status deck for the PoC.
+A non-expert-friendly status deck for the PoC, in three interchangeable forms.
 
-- **`poc-status.html`** — self-contained slide deck. Open it in any browser
-  (no build, no internet, no dependencies). Navigate with `←` / `→` / space;
-  press `F` for fullscreen.
-- **`poc-status.md`** — the same deck as [Marp](https://marp.app/) markdown
-  (the editable source; also renders as plain markdown on GitHub).
+| File | Use |
+| --- | --- |
+| **`poc-status.html`** | Self-contained browser deck — no build, no internet, no deps. `←` / `→` / space to navigate, `F` for fullscreen. |
+| **`poc-status-beamer.pdf`** | Ready-to-present PDF (compiled from the Beamer source). |
+| **`poc-status-beamer.tex`** | LaTeX **Beamer** source (TikZ QKV diagram). |
+| **`poc-status.md`** | [Marp](https://marp.app/) markdown — editable source; also renders as plain markdown on GitHub. |
 
-## Editing
+All three carry the same 13-slide story, including a **side-by-side QKV diagram**
+(unfused three matmuls vs. fused one-matmul-and-split, with a "proven equal" badge).
 
-Edit `poc-status.md`, then keep `poc-status.html` in sync. To regenerate the
-HTML (and a PDF/PPTX) from the markdown with Marp:
+## Regenerating
+
+Beamer → PDF (run twice for the page refs):
+
+```bash
+cd slides
+pdflatex poc-status-beamer.tex
+pdflatex poc-status-beamer.tex
+```
+
+Marp → HTML / PDF / PPTX:
 
 ```bash
 npx @marp-team/marp-cli@latest slides/poc-status.md -o slides/poc-status.html
