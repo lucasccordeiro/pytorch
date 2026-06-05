@@ -216,10 +216,12 @@
 % ---------------------------------------------------------------
 \begin{frame}{Result: the example is PROVEN correct}
   \begin{itemize}
-    \item \good\ Proven equal for \textbf{all inputs we model} --- and \textbf{bit-for-bit exact}
-      (IEEE-754, the standard computer number format), not a ``close enough'' tolerance.
-    \item \good\ Done \textbf{two ways}: a plain-math encoding \emph{and} the real
-      \texttt{torch.mm} {+} \texttt{torch.allclose}.
+    \item \good\ Proven equal for \textbf{all inputs we model}.
+    \item \good\ Proven \textbf{both senses of ``equal''}: \textbf{bit-for-bit exact} (zero
+      tolerance --- literally identical, IEEE-754) \emph{and} within
+      \textbf{\texttt{torch.allclose}'s real tolerance} (\texttt{rtol=1e-5, atol=1e-8}).
+    \item \good\ Proven in \textbf{two encodings}: plain-math (the matmul written out as
+      explicit loops) \emph{and} the real \texttt{torch.mm} {+} \texttt{torch.allclose}.
     \item \good\ When we \textbf{deliberately break it} (swap two columns), ESBMC
       \textbf{catches it} and shows the exact failing input.
   \end{itemize}
@@ -230,7 +232,7 @@
 
 % ---------------------------------------------------------------
 \begin{frame}{What the suite covers (and what it doesn't --- yet)}
-  \textbf{6 / 6} checks behave as expected --- small \emph{on purpose}: it is breadth, not scale.
+  \textbf{8 / 8} checks behave as expected --- small \emph{on purpose}: it is breadth, not scale.
 
   \medskip
   \begin{tabular}{@{}ll@{}}
@@ -239,7 +241,8 @@
     \midrule
     Problem classes & QKV projection $\cdot$ bias-fused linear ($X\,W + b$) \\
     Encodings & plain-math \textbf{and} torch-native (\texttt{torch.mm} / \texttt{allclose}) \\
-    Check type & a \textbf{proof} (clean $\Rightarrow$ \good) \textbf{and} a \textbf{refutation} (bug $\Rightarrow$ \bad\ {+} counterexample) \\
+    Strength of ``equal'' & \textbf{bit-for-bit exact} (zero tol.) \textbf{and} \textbf{tolerance} (\texttt{allclose} defaults) \\
+    Check type & a \textbf{proof} (clean $\Rightarrow$ \good) \textbf{and} a \textbf{refutation} (bug $\Rightarrow$ \bad\ {+} c.\,ex.) \\
     \bottomrule
   \end{tabular}
 
@@ -352,8 +355,9 @@
     \item Tensors are modelled as lists of \textbf{IEEE-754 floats}; \texttt{torch.mm} /
       \texttt{torch.allclose} have operational models.
     \item The condition is essentially: \emph{for all bounded inputs,} \texttt{fused[i][j] == unfused[i][j]}.
-    \item An \textbf{SMT solver} (Bitwuzla / Z3) decides it: \textbf{UNSAT $\Rightarrow$ proved};
-      \textbf{SAT $\Rightarrow$ counterexample}.
+    \item An \textbf{SMT solver} (Bitwuzla / Z3) decides it. \emph{(It searches for a breaking
+      input: \textbf{none exists --- UNSAT $\Rightarrow$ proved}; \textbf{one found --- SAT
+      $\Rightarrow$ that input is the counterexample}.)}
   \end{enumerate}
 
   \begin{semiverbatim}\footnotesize

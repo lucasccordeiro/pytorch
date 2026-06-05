@@ -20,22 +20,27 @@ Here every input is a **bounded nondeterministic float**, so a
 
 ## Status
 
-**6 verification targets**, three clean / `_buggy` pairs:
+**8 verification targets.** QKV is proved both **bit-for-bit exact** and within
+`torch.allclose`'s **tolerance**, in two encodings; each clean target is paired
+with a refuted `_buggy` mutant:
 
 | Target | Property | Verdict |
 | --- | --- | --- |
-| `qkv_equivalence` | QKV fused vs. unfused, scalar-unrolled (no torch OM) | SUCCESSFUL |
+| `qkv_equivalence_exact` | QKV scalar, **bit-for-bit exact** (`==`) | SUCCESSFUL |
+| `qkv_equivalence` | QKV scalar, **tolerance** (`allclose` defaults) | SUCCESSFUL |
 | `qkv_equivalence_buggy` | scalar, K reads V's columns | FAILED |
-| `qkv_equivalence_torch` | QKV fused vs. unfused, **torch-native** (`torch.mm` + `torch.allclose`) | SUCCESSFUL |
+| `qkv_equivalence_torch_exact` | QKV **torch-native**, exact (`allclose` rtol=0, atol=0) | SUCCESSFUL |
+| `qkv_equivalence_torch` | QKV **torch-native**, tolerance (`torch.mm` + `torch.allclose`) | SUCCESSFUL |
 | `qkv_equivalence_torch_buggy` | torch, split swaps K/V | FAILED |
 | `bias_linear` | `X@W + b` vs. augmented `[X\|1] @ [W;b]`, torch-native | SUCCESSFUL |
 | `bias_linear_buggy` | fused unit column zeroed, bias dropped | FAILED |
 
-Each clean target proves the two programs **FP-exactly** equal (the fused
-computation is the identical multiply–add sequence as the unfused one, so
-equality is exact, stronger than `torch.allclose`'s tolerance). Each mutant is
-refuted with a counterexample — so the suite cannot pass vacuously. Full results
-and timings in [`REPORT.md`](./REPORT.md).
+The `_exact` targets prove the two programs **bit-for-bit equal** (zero
+tolerance) — sound because the fused computation is the *identical* multiply–add
+sequence as the unfused one; the other targets prove equality within
+`torch.allclose`'s real tolerance, matching how PyTorch users compare tensors.
+Each mutant is refuted with a counterexample, so the suite cannot pass
+vacuously. Full results and timings in [`REPORT.md`](./REPORT.md).
 
 The torch-native targets are the headline: they exercise the **torch
 operational model** merged into ESBMC ([esbmc#5120](https://github.com/esbmc/esbmc/pull/5120))
@@ -82,8 +87,9 @@ truncation, tolerance predicates, `cat`/`split` cost) learned along the way.
 ```
 harness/
   stubs.py                         shared bounded-nondet-float helper
-  qkv_equivalence.py               scalar-unrolled QKV equivalence  (+ _buggy)
-  qkv_equivalence_torch.py         torch-native QKV equivalence     (+ _buggy)
+  qkv_equivalence.py               scalar QKV equivalence: tolerance, _exact, _buggy
+  qkv_equivalence_torch.py         torch-native QKV: tolerance, _exact, _buggy
+  bias_linear.py                   bias-fused linear equivalence    (+ _buggy)
   esbmc_defects/                   minimal reproducers for the ESBMC bugs found
 verify.py                          suite driver
 Makefile                           `make verify`

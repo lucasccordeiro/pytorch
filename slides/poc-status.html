@@ -192,8 +192,9 @@
   <section class="slide">
     <h2>Result: the example is PROVEN correct</h2>
     <ul>
-      <li><span class="ok">✅</span> Proven equal for <strong>all inputs we model</strong> — and <strong>bit-for-bit exact</strong> (IEEE-754, the standard computer number format), not a “close enough” tolerance.</li>
-      <li><span class="ok">✅</span> Done <b>two ways</b>: a plain-math encoding <b>and</b> the <em>real</em> <code>torch.mm</code> + <code>torch.allclose</code>.</li>
+      <li><span class="ok">✅</span> Proven equal for <strong>all inputs we model</strong>.</li>
+      <li><span class="ok">✅</span> Proven <b>both senses of “equal”</b>: <strong>bit-for-bit exact</strong> (zero tolerance — literally identical, IEEE-754) <b>and</b> within <strong><code>torch.allclose</code>’s real tolerance</strong> (<code>rtol=1e-5, atol=1e-8</code>).</li>
+      <li><span class="ok">✅</span> Proven in <b>two encodings</b>: plain-math (the matmul written out as explicit loops) <b>and</b> the <em>real</em> <code>torch.mm</code> + <code>torch.allclose</code>.</li>
       <li><span class="ok">✅</span> When we <b>deliberately break it</b> (swap two columns), ESBMC <strong>catches it</strong> and shows the exact failing input.</li>
     </ul>
     <blockquote class="small">What “modelled” means (fixed sizes, bounded inputs) → <b>Assumptions &amp; Scope</b>, backup slides.</blockquote>
@@ -201,11 +202,12 @@
 
   <section class="slide">
     <h2>What the suite covers (and what it doesn’t — yet)</h2>
-    <p style="max-width:52ch"><strong>6 / 6</strong> checks behave as expected — small <em>on purpose</em>: it’s breadth, not scale.</p>
+    <p style="max-width:52ch"><strong>8 / 8</strong> checks behave as expected — small <em>on purpose</em>: it’s breadth, not scale.</p>
     <table>
       <tr><th>Dimension</th><th>Coverage</th></tr>
       <tr><td>Problem classes</td><td>QKV projection · bias-fused linear (<code>X·W + b</code>)</td></tr>
       <tr><td>Encodings</td><td>plain-math <b>and</b> torch-native (<code>torch.mm</code> / <code>torch.allclose</code>)</td></tr>
+      <tr><td>Strength of “equal”</td><td><b>bit-for-bit exact</b> (zero tolerance) <b>and</b> <b>tolerance</b> (<code>torch.allclose</code> defaults)</td></tr>
       <tr><td>Check type</td><td>a <b>proof</b> (clean ⇒ ✅) <b>and</b> a <b>refutation</b> (injected bug ⇒ ❌ + counterexample)</td></tr>
     </table>
     <p class="small">Every case is double-checked: we prove the correct version <em>and</em> confirm a broken one is caught. <b>Early-stage PoC</b> — small fixed sizes (see Performance, backup).</p>
@@ -278,7 +280,7 @@
       <li>ESBMC <b>unrolls</b> the program (fixed sizes ⇒ finite) and turns each <code>assert</code> into a <b>verification condition</b>.</li>
       <li>Tensors are modelled as lists of <b>IEEE-754 floats</b>; <code>torch.mm</code> / <code>torch.allclose</code> have operational models.</li>
       <li>The condition is essentially: <em>for all bounded inputs,</em> <code>fused[i][j] == unfused[i][j]</code>.</li>
-      <li>An <b>SMT solver</b> (Bitwuzla / Z3) decides it: <b>UNSAT ⇒ proved</b>; <b>SAT ⇒ counterexample</b>.</li>
+      <li>An <b>SMT solver</b> (Bitwuzla / Z3) decides it. <em>(It searches for a breaking input: <b>none exists — UNSAT ⇒ proved</b>; <b>one found — SAT ⇒ that input is the counterexample</b>.)</em></li>
     </ul>
     <pre>X, Wq, Wk, Wv = symbolic, bounded        # any numbers in range
 assert torch.allclose(unfused, fused)    # → one SMT formula over FP</pre>

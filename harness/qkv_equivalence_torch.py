@@ -13,6 +13,9 @@
 # so the result holds for ALL admissible inputs, not one random sample.
 #
 # Dims kept small (S=1, D=2, H=1) so the four matmuls stay within a few minutes.
+# This is the TOLERANCE variant (torch.allclose's default rtol=1e-5, atol=1e-8).
+# The bit-for-bit-exact counterpart is qkv_equivalence_torch_exact.py.
+#
 # Run: esbmc qkv_equivalence_torch.py --unwind 4   (expect VERIFICATION SUCCESSFUL)
 
 import torch

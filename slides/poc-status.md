@@ -145,8 +145,9 @@ We assert `unfused result == fused result`, feed it *any* input in range, and le
 
 ## Result: the example is PROVEN correct
 
-- ✅ Proven equal for **all inputs we model** — and **bit-for-bit exact** (IEEE-754, the standard computer number format), not a "close enough" tolerance.
-- ✅ Done **two ways**: a plain-math encoding **and** the *real* `torch.mm` + `torch.allclose`.
+- ✅ Proven equal for **all inputs we model**.
+- ✅ Proven **both senses of "equal"**: **bit-for-bit exact** (zero tolerance — literally identical, IEEE-754) **and** within **`torch.allclose`'s real tolerance** (`rtol=1e-5, atol=1e-8`).
+- ✅ Proven in **two encodings**: plain-math (the matmul written out as explicit loops) **and** the *real* `torch.mm` + `torch.allclose`.
 - ✅ When we **deliberately break it** (swap two columns), ESBMC **catches it** and shows the exact failing input.
 
 > What "modelled" means (fixed sizes, bounded inputs) → **Assumptions & Scope**, backup slides.
@@ -155,12 +156,13 @@ We assert `unfused result == fused result`, feed it *any* input in range, and le
 
 ## What the suite covers (and what it doesn't — yet)
 
-**6 / 6 checks behave as expected.** That number is small *on purpose* — it is breadth, not scale:
+**8 / 8 checks behave as expected.** That number is small *on purpose* — it is breadth, not scale:
 
 | Dimension | Coverage |
 | --- | --- |
 | Problem classes | QKV projection · bias-fused linear (`X·W + b`) |
 | Encodings | plain-math **and** torch-native (`torch.mm` / `torch.allclose`) |
+| Strength of "equal" | **bit-for-bit exact** (zero tolerance) **and** **tolerance** (`torch.allclose` defaults) |
 | Check type | a **proof** (clean ⇒ ✅) **and** a **refutation** (injected bug ⇒ ❌ + counterexample) |
 
 So every case is double-checked: we prove the correct version *and* confirm a broken version is caught.
@@ -249,7 +251,7 @@ For all inputs within a defined size and range · today on small examples · sca
 1. ESBMC **unrolls** the program (fixed sizes ⇒ finite) and turns each `assert` into a **verification condition**.
 2. Tensors are modelled as lists of **IEEE-754 floats**; `torch.mm` / `torch.allclose` have operational models.
 3. The condition is essentially: *for all bounded inputs,* `fused[i][j] == unfused[i][j]`.
-4. An **SMT solver** (Bitwuzla / Z3) decides it: **UNSAT ⇒ proved**; **SAT ⇒ counterexample**.
+4. An **SMT solver** (Bitwuzla / Z3) decides it. *(It searches for a breaking input: **none exists — UNSAT ⇒ proved**; **one found — SAT ⇒ that input is the counterexample**.)*
 
 ```python
 X, Wq, Wk, Wv = symbolic, bounded         # any numbers in range

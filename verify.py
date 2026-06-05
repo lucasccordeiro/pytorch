@@ -58,11 +58,17 @@ class Target:
 
 MANIFEST: list[Target] = [
     # Scalar-unrolled QKV equivalence (independent of the torch OM).
+    # Proved both bit-for-bit exact (==) and within torch.allclose's tolerance.
+    Target("qkv_equivalence_exact", "qkv_equivalence_exact.py",
+           ("--unwind", "8"), "SUCCESSFUL"),
     Target("qkv_equivalence", "qkv_equivalence.py",
            ("--unwind", "8"), "SUCCESSFUL"),
     Target("qkv_equivalence_buggy", "qkv_equivalence_buggy.py",
            ("--unwind", "8"), "FAILED"),
     # Torch-native QKV equivalence (torch.mm + torch.allclose; esbmc#5120/#5131).
+    # Exact = allclose(rtol=0, atol=0); tolerance = allclose defaults.
+    Target("qkv_equivalence_torch_exact", "qkv_equivalence_torch_exact.py",
+           ("--unwind", "4"), "SUCCESSFUL"),
     Target("qkv_equivalence_torch", "qkv_equivalence_torch.py",
            ("--unwind", "4"), "SUCCESSFUL"),
     Target("qkv_equivalence_torch_buggy", "qkv_equivalence_torch_buggy.py",
