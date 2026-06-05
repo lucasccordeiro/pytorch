@@ -15,6 +15,7 @@ style: |
   table { font-size: 22px; }
   section.lead { text-align: center; }
   section.lead h1 { font-size: 48px; }
+  section.appendix { background: #f3f6fb; }
   footer { color: #8a8a8e; }
 ---
 
@@ -72,10 +73,10 @@ These **should** give identical results. The question: do they — *always*?
                                                                    ├─▶ K
                                                                    └─▶ V
 
-                    ≡   proven equal for every input
+                    ≡   proven equal for every modelled input
 ```
 
-ESBMC proves these two produce **the same result for every input**.
+ESBMC proves these two produce **the same result for every input we model**.
 
 ---
 
@@ -91,13 +92,13 @@ We run the program on a **handful of example inputs** and compare.
 
 ---
 
-## What we actually want: a proof for *all* inputs
+## What we actually want: a proof, not a sample
 
-Instead of trying a few inputs, check **every possible input at once** — mathematically.
+Instead of trying a few inputs, check **every input we model — all at once** — mathematically.
 
 Two possible outcomes:
 
-- ✅ **PROVEN equal** — guaranteed identical for *every* input.
+- ✅ **PROVEN equal** — guaranteed identical for *every* input in the model.
 - ❌ **Counterexample** — one specific input where they differ, handed straight to you.
 
 Either way, you learn something certain.
@@ -111,9 +112,9 @@ Either way, you learn something certain.
 1. It **reads the program** and turns the question
    *"are these two always equal?"* into one giant logic puzzle.
 2. An automated **solver** then either finds an input that breaks it,
-   or proves that **no such input exists**.
+   or proves that **no such input exists** (within the model).
 
-You write **no** proofs by hand — it is **push-button**.
+**Fully automated** once the program is encoded — you write **no** proofs by hand.
 
 ---
 
@@ -121,55 +122,70 @@ You write **no** proofs by hand — it is **push-button**.
 
 | Ordinary test | Our verification |
 | --- | --- |
-| one **random** tensor `torch.randn(...)` | a **symbolic** tensor = *any* numbers |
-| checks that one case | checks the **whole range at once** |
-| "looks fine" | a **guarantee** |
+| one **random** tensor `torch.randn(...)` | a **symbolic** tensor = *any* numbers (bounded) |
+| checks that one case | checks the **whole modelled range at once** |
+| "looks fine" | a **guarantee — within the model** |
 
-We assert `unfused result == fused result`, feed it *any* input, and let ESBMC settle it.
+We assert `unfused result == fused result`, feed it *any* input in range, and let ESBMC settle it.
 
-*(We keep the numbers in a sane range to rule out oddities like "not-a-number".)*
+*(Inputs are bounded to a finite range to exclude oddities like "not-a-number". → Assumptions, backup.)*
 
 ---
 
 ## Result: the example is PROVEN correct
 
-- ✅ Proven equal for **all** inputs — and **bit-for-bit exact**, not merely "close".
+- ✅ Proven equal for **all inputs we model** — and **bit-for-bit exact** (IEEE-754), not a "close enough" tolerance.
 - ✅ Done **two ways**: a plain-math encoding **and** the *real* `torch.mm` + `torch.allclose`.
 - ✅ When we **deliberately break it** (swap two columns), ESBMC **catches it** and shows the exact failing input.
 
-**Whole test suite: 6 / 6 targets behave exactly as expected.**
+> What "modelled" means (fixed sizes, bounded inputs) → **Assumptions & Scope**, backup slides.
 
 ---
 
-## Why formal verification matters here
+## What the suite covers (and what it doesn't — yet)
 
-- **All inputs**, not a few → no hidden corner cases.
+**6 / 6 checks behave as expected.** That number is small *on purpose* — it is breadth, not scale:
+
+| Dimension | Coverage |
+| --- | --- |
+| Problem classes | QKV projection · bias-fused linear (`X·W + b`) |
+| Encodings | plain-math **and** torch-native (`torch.mm` / `torch.allclose`) |
+| Check type | a **proof** (clean ⇒ ✅) **and** a **refutation** (injected bug ⇒ ❌ + counterexample) |
+
+So every case is double-checked: we prove the correct version *and* confirm a broken version is caught.
+
+**This is an early-stage PoC** — small fixed sizes for now (see *Performance*, backup).
+
+---
+
+## Why this matters
+
+- **All modelled inputs**, not a few → no hidden corner cases within the model.
 - **Exact** → catches tiny numerical drift that testing would wave through.
-- **Automatic** → no hand-written proofs, no PhD required to run it.
-- **Actionable failures** → it gives you the precise input that breaks things.
+- **Automated** → no hand-written proofs.
+- **Actionable failures** → it hands you the precise input that breaks things.
 
-> For machine learning: you can finally **trust** your fused kernels, rewrites, and compiler optimizations.
+> Concretely: **detect incorrect optimizations early** and **validate fusion / compiler transformations** *before* they ship — not after a model misbehaves in production.
 
 ---
 
 ## A bonus: we made the tool itself stronger
 
-Real PyTorch-style code pushed ESBMC into territory it could not yet handle.
+Real PyTorch-style code pushed ESBMC into territory it could not yet handle — so we **added what was missing** (4 contributions merged upstream):
 
-So along the way we **found and fixed** the gaps:
+- A **`torch` operational model** — `mm`, `matmul`, `cat`, `split`, `allclose`.
+- Fixes so **matrix math over nested lists works** — values/types survive function returns and copies.
+- A **floating-point element-type fix** for matrices built by comprehension (we found, root-caused, and fixed it).
 
-- **4 contributions merged** into ESBMC upstream
-  (including a new built-in model for `torch` operations and several bug fixes).
-
-Now *other people* can verify PyTorch-style code too — not just us.
+> Result: PyTorch-style code is now verifiable in ESBMC **at all** — reusable by anyone, not just us.
 
 ---
 
 ## Where we are · what's next
 
 - ✅ Motivating **QKV** example **fully supported** (two encodings, exact proof).
-- ✅ Extended to a **second** case: bias-fused linear (`X·W + b`).
-- ⏭️ **Bigger matrices** and fully native fuse/split — gated on **one** performance improvement upstream.
+- ✅ Extended to a **second** class: bias-fused linear (`X·W + b`).
+- ⏭️ **Bigger matrices** and fully native fuse/split — gated on **one** performance improvement upstream (see *Performance*, backup).
 
 ---
 
@@ -177,7 +193,71 @@ Now *other people* can verify PyTorch-style code too — not just us.
 
 ## Takeaway
 
-We can now **prove** — automatically, for **every** input —
+We can **prove** — automatically, for **every modelled input** —
 that a fast PyTorch rewrite computes **exactly** the same result as the original.
 
-*Testing can only sample. This is a guarantee.*
+*Testing samples. This proves — and when it can't, it hands you the bug.*
+
+**Use it to gate fusions and compiler rewrites before they ship.**
+
+---
+
+<!-- _class: appendix lead -->
+
+# Backup slides
+
+*Assumptions · Under the hood · Performance*
+
+---
+
+<!-- _class: appendix -->
+
+## Assumptions & Scope
+
+**What we prove**
+
+- Equivalence of the two programs *as written*, for **all inputs in the modelled range**.
+- Floating-point modelled **exactly** (IEEE-754, bit-precise) — not real arithmetic, not a hand-waved tolerance.
+
+**What we model / bound**
+
+- **Fixed tensor sizes** (bounded model checking; sizes are concrete, e.g. `S=1, D=2, H=1`).
+- **Inputs bounded** to a finite range, which excludes `NaN`/`Inf`.
+
+**What we do *not* claim**
+
+- Arbitrary or symbolic sizes · performance equivalence · behaviour outside the bounds.
+
+---
+
+<!-- _class: appendix -->
+
+## Under the hood: how verification works
+
+1. ESBMC **unrolls** the program (fixed sizes ⇒ finite) and turns each `assert` into a **verification condition**.
+2. Tensors are modelled as lists of **IEEE-754 floats**; `torch.mm` / `torch.allclose` have operational models.
+3. The condition is essentially: *for all bounded inputs,* `fused[i][j] == unfused[i][j]`.
+4. An **SMT solver** (Bitwuzla / Z3) decides it: **UNSAT ⇒ proved**; **SAT ⇒ counterexample**.
+
+```python
+X, Wq, Wk, Wv = symbolic, bounded         # any numbers in range
+assert torch.allclose(unfused, fused)     # → one SMT formula over FP
+```
+
+---
+
+<!-- _class: appendix -->
+
+## Performance & current limits
+
+Per-target runtime (default solver Bitwuzla, macOS arm64):
+
+| Check | Time |
+| --- | --- |
+| scalar QKV proof | ~11 s |
+| torch-native QKV proof | ~110 s |
+| refuting a broken variant | 31 – 292 s |
+
+- Cost grows quickly with tensor size (more multiply-adds → a bigger FP formula).
+- `torch.cat` / `torch.split` are modelled but **unwinding-heavy** (a 1×1×3 `cat`+`split` ≈ 2.5 min) → we fuse/split by manual indexing for now.
+- **Scaling to realistic sizes is the main open bottleneck** (tracked upstream).

@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#fbfbfd; --ink:#1d1d1f; --blue:#0b5cad; --red:#b3261e;
-    --muted:#8a8a8e; --panel:#eef2f7; --line:#d9e1ec;
+    --muted:#8a8a8e; --panel:#eef2f7; --line:#d9e1ec; --appbg:#f0f4fa;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
@@ -21,32 +21,36 @@
     padding:6vh 9vw;animation:fade .35s ease;
   }
   .slide.active{display:flex}
+  .slide.appendix{background:var(--appbg)}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   h1{color:var(--blue);font-size:clamp(28px,5vw,52px);line-height:1.1;margin-bottom:.4em}
   h2{color:var(--blue);font-size:clamp(24px,3.4vw,38px);margin-bottom:.6em}
   h3{font-size:clamp(18px,2.2vw,26px);font-weight:600;color:#333;margin-bottom:.5em}
-  p{font-size:clamp(17px,2.1vw,26px);line-height:1.5;margin:.35em 0;max-width:30ch}
+  p{font-size:clamp(17px,2.1vw,26px);line-height:1.5;margin:.35em 0;max-width:34ch}
   ul{margin:.4em 0 .4em 1.1em}
-  li{font-size:clamp(16px,2vw,25px);line-height:1.5;margin:.4em 0;max-width:42ch}
+  li{font-size:clamp(16px,2vw,24px);line-height:1.45;margin:.35em 0;max-width:46ch}
   strong{color:var(--red)}
   .lead{text-align:center;align-items:center}
   .lead p{max-width:none}
   .sub{color:#444;font-weight:600}
   .muted{color:var(--muted)}
+  .small{font-size:clamp(13px,1.6vw,18px)}
   pre{
     background:var(--panel);border:1px solid var(--line);border-radius:10px;
-    padding:.8em 1em;font-size:clamp(15px,1.9vw,22px);margin:.6em 0;
+    padding:.7em 1em;font-size:clamp(14px,1.8vw,21px);margin:.5em 0;
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;
   }
   blockquote{
     border-left:4px solid var(--blue);background:#eef4fb;border-radius:0 8px 8px 0;
-    padding:.6em 1em;margin:.7em 0;font-size:clamp(17px,2.1vw,26px);max-width:40ch;
+    padding:.55em 1em;margin:.6em 0;font-size:clamp(16px,2vw,25px);max-width:48ch;
   }
-  table{border-collapse:collapse;margin:.6em 0;font-size:clamp(15px,1.9vw,23px)}
-  th,td{border:1px solid var(--line);padding:.5em .9em;text-align:left}
+  table{border-collapse:collapse;margin:.5em 0;font-size:clamp(14px,1.8vw,22px)}
+  th,td{border:1px solid var(--line);padding:.45em .8em;text-align:left;vertical-align:top}
   th{background:var(--panel);color:var(--blue)}
   .big-emoji{font-size:clamp(28px,4vw,44px)}
   .ok{color:#1a7f37}.bad{color:#b3261e}
+  .tag{position:absolute;top:18px;right:22px;font-size:13px;letter-spacing:.08em;
+    color:var(--blue);background:#e3ecf7;border:1px solid #c7d8ee;border-radius:20px;padding:3px 12px;font-weight:700}
   footer{position:fixed;bottom:14px;left:0;right:0;display:flex;justify-content:space-between;
     padding:0 24px;color:var(--muted);font-size:14px;pointer-events:none}
   .hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:13px}
@@ -95,17 +99,15 @@
         </marker>
       </defs>
       <style>
-        .bx{fill:#eef2f7;stroke:#0b5cad;stroke-width:1.5;rx:8}
-        .rs{fill:#eaf6ee;stroke:#1a7f37;stroke-width:1.5;rx:8}
+        .bx{fill:#eef2f7;stroke:#0b5cad;stroke-width:1.5}
+        .rs{fill:#eaf6ee;stroke:#1a7f37;stroke-width:1.5}
         .t{font-size:20px;fill:#1d1d1f}
         .op{font-size:15px;fill:#0b5cad;font-style:italic}
         .cap{font-size:18px;fill:#0b5cad;font-weight:700}
         .ar{stroke:#0b5cad;stroke-width:2;fill:none;marker-end:url(#ah)}
       </style>
-      <!-- captions -->
       <text class="cap" x="60"  y="28">Unfused: three matmuls</text>
       <text class="cap" x="600" y="398">Fused: one matmul + split</text>
-      <!-- UNFUSED (top) -->
       <rect class="bx" x="40"  y="80"  width="64" height="46" rx="8"/><text class="t" x="72" y="109" text-anchor="middle">X</text>
       <rect class="rs" x="330" y="44"  width="56" height="40" rx="8"/><text class="t" x="358" y="70"  text-anchor="middle">V</text>
       <rect class="rs" x="330" y="104" width="56" height="40" rx="8"/><text class="t" x="358" y="130" text-anchor="middle">Q</text>
@@ -116,11 +118,9 @@
       <text class="op" x="150" y="76">× Wv</text>
       <text class="op" x="150" y="106">× Wq</text>
       <text class="op" x="150" y="150">× Wk</text>
-      <!-- equivalence badge -->
       <rect x="446" y="120" width="92" height="56" rx="10" fill="#eaf6ee" stroke="#1a7f37" stroke-width="1.5"/>
       <text x="492" y="144" text-anchor="middle" font-size="20" fill="#1a7f37" font-weight="700">≡</text>
       <text x="492" y="166" text-anchor="middle" font-size="14" fill="#1a7f37" font-weight="700">proven equal</text>
-      <!-- FUSED (bottom) -->
       <rect class="bx" x="40"  y="300" width="64" height="46" rx="8"/><text class="t" x="72" y="329" text-anchor="middle">X</text>
       <rect class="bx" x="150" y="300" width="190" height="46" rx="8"/><text class="t" x="245" y="329" text-anchor="middle" font-size="17">W = [Wq | Wk | Wv]</text>
       <rect class="bx" x="392" y="300" width="78" height="46" rx="8"/><text class="t" x="431" y="329" text-anchor="middle" font-size="18">QKV</text>
@@ -136,7 +136,7 @@
       <text class="op" x="350" y="316">X × W</text>
       <text class="op" x="520" y="316">split</text>
     </svg>
-    <p style="margin-top:.3em">ESBMC proves these two produce <strong>the same result for every input</strong>.</p>
+    <p style="margin-top:.3em">ESBMC proves these two produce <strong>the same result for every input we model</strong>.</p>
   </section>
 
   <section class="slide">
@@ -152,11 +152,11 @@
   </section>
 
   <section class="slide">
-    <h2>What we actually want: a proof for <em>all</em> inputs</h2>
-    <p style="max-width:44ch">Instead of trying a few inputs, check <strong>every possible input at once</strong> — mathematically.</p>
+    <h2>What we actually want: a proof, not a sample</h2>
+    <p style="max-width:46ch">Instead of trying a few inputs, check <strong>every input we model — all at once</strong> — mathematically.</p>
     <p>Two possible outcomes:</p>
     <ul>
-      <li><span class="ok">✅ <b>PROVEN equal</b></span> — guaranteed identical for <em>every</em> input.</li>
+      <li><span class="ok">✅ <b>PROVEN equal</b></span> — guaranteed identical for <em>every</em> input in the model.</li>
       <li><span class="bad">❌ <b>Counterexample</b></span> — one specific input where they differ, handed straight to you.</li>
     </ul>
     <p>Either way, you learn something certain.</p>
@@ -167,66 +167,132 @@
     <p><strong>ESBMC</strong> is an automated <em>model checker</em>.</p>
     <ul>
       <li>It <b>reads the program</b> and turns the question <em>“are these two always equal?”</em> into one giant logic puzzle.</li>
-      <li>An automated <b>solver</b> then either finds an input that breaks it, or proves that <b>no such input exists</b>.</li>
+      <li>An automated <b>solver</b> then either finds an input that breaks it, or proves that <b>no such input exists</b> (within the model).</li>
     </ul>
-    <blockquote>You write <strong>no</strong> proofs by hand — it is <strong>push-button</strong>.</blockquote>
+    <blockquote><strong>Fully automated</strong> once the program is encoded — you write <strong>no</strong> proofs by hand.</blockquote>
   </section>
 
   <section class="slide">
     <h2>The trick that turns a test into a proof</h2>
     <table>
       <tr><th>Ordinary test</th><th>Our verification</th></tr>
-      <tr><td>one <b>random</b> tensor <code>torch.randn(…)</code></td><td>a <b>symbolic</b> tensor = <em>any</em> numbers</td></tr>
-      <tr><td>checks that one case</td><td>checks the <b>whole range at once</b></td></tr>
-      <tr><td>“looks fine”</td><td>a <b>guarantee</b></td></tr>
+      <tr><td>one <b>random</b> tensor <code>torch.randn(…)</code></td><td>a <b>symbolic</b> tensor = <em>any</em> numbers (bounded)</td></tr>
+      <tr><td>checks that one case</td><td>checks the <b>whole modelled range at once</b></td></tr>
+      <tr><td>“looks fine”</td><td>a <b>guarantee — within the model</b></td></tr>
     </table>
-    <p style="max-width:48ch">We assert <code>unfused result == fused result</code>, feed it <em>any</em> input, and let ESBMC settle it.</p>
-    <p class="muted">(We keep the numbers in a sane range to rule out oddities like “not-a-number”.)</p>
+    <p style="max-width:50ch">We assert <code>unfused == fused</code>, feed it <em>any</em> input in range, and let ESBMC settle it.</p>
+    <p class="muted small">Inputs are bounded to a finite range to exclude oddities like “not-a-number”. → Assumptions (backup).</p>
   </section>
 
   <section class="slide">
     <h2>Result: the example is PROVEN correct</h2>
     <ul>
-      <li><span class="ok">✅</span> Proven equal for <strong>all</strong> inputs — and <strong>bit-for-bit exact</strong>, not merely “close”.</li>
+      <li><span class="ok">✅</span> Proven equal for <strong>all inputs we model</strong> — and <strong>bit-for-bit exact</strong> (IEEE-754), not a “close enough” tolerance.</li>
       <li><span class="ok">✅</span> Done <b>two ways</b>: a plain-math encoding <b>and</b> the <em>real</em> <code>torch.mm</code> + <code>torch.allclose</code>.</li>
       <li><span class="ok">✅</span> When we <b>deliberately break it</b> (swap two columns), ESBMC <strong>catches it</strong> and shows the exact failing input.</li>
     </ul>
-    <blockquote>Whole test suite: <strong>6 / 6</strong> targets behave exactly as expected.</blockquote>
+    <blockquote class="small">What “modelled” means (fixed sizes, bounded inputs) → <b>Assumptions &amp; Scope</b>, backup slides.</blockquote>
   </section>
 
   <section class="slide">
-    <h2>Why formal verification matters here</h2>
+    <h2>What the suite covers (and what it doesn’t — yet)</h2>
+    <p style="max-width:52ch"><strong>6 / 6</strong> checks behave as expected — small <em>on purpose</em>: it’s breadth, not scale.</p>
+    <table>
+      <tr><th>Dimension</th><th>Coverage</th></tr>
+      <tr><td>Problem classes</td><td>QKV projection · bias-fused linear (<code>X·W + b</code>)</td></tr>
+      <tr><td>Encodings</td><td>plain-math <b>and</b> torch-native (<code>torch.mm</code> / <code>torch.allclose</code>)</td></tr>
+      <tr><td>Check type</td><td>a <b>proof</b> (clean ⇒ ✅) <b>and</b> a <b>refutation</b> (injected bug ⇒ ❌ + counterexample)</td></tr>
+    </table>
+    <p class="small">Every case is double-checked: we prove the correct version <em>and</em> confirm a broken one is caught. <b>Early-stage PoC</b> — small fixed sizes (see Performance, backup).</p>
+  </section>
+
+  <section class="slide">
+    <h2>Why this matters</h2>
     <ul>
-      <li><b>All inputs</b>, not a few → no hidden corner cases.</li>
+      <li><b>All modelled inputs</b>, not a few → no hidden corner cases within the model.</li>
       <li><b>Exact</b> → catches tiny numerical drift that testing would wave through.</li>
-      <li><b>Automatic</b> → no hand-written proofs, no PhD required to run it.</li>
-      <li><b>Actionable failures</b> → it gives you the precise input that breaks things.</li>
+      <li><b>Automated</b> → no hand-written proofs.</li>
+      <li><b>Actionable failures</b> → it hands you the precise input that breaks things.</li>
     </ul>
-    <blockquote>For machine learning: you can finally <strong>trust</strong> your fused kernels, rewrites, and compiler optimizations.</blockquote>
+    <blockquote>Concretely: <strong>detect incorrect optimizations early</strong> and <strong>validate fusion / compiler transformations</strong> <em>before</em> they ship.</blockquote>
   </section>
 
   <section class="slide">
     <h2>A bonus: we made the tool itself stronger</h2>
-    <p style="max-width:48ch">Real PyTorch-style code pushed ESBMC into territory it could not yet handle. So along the way we <strong>found and fixed</strong> the gaps:</p>
+    <p style="max-width:52ch">Real PyTorch-style code pushed ESBMC into territory it couldn’t yet handle — so we <strong>added what was missing</strong> (4 contributions merged upstream):</p>
     <ul>
-      <li><b>4 contributions merged</b> into ESBMC upstream — including a new built-in model for <code>torch</code> operations and several bug fixes.</li>
+      <li>A <b><code>torch</code> operational model</b> — <code>mm</code>, <code>matmul</code>, <code>cat</code>, <code>split</code>, <code>allclose</code>.</li>
+      <li>Fixes so <b>matrix math over nested lists works</b> — values/types survive function returns and copies.</li>
+      <li>A <b>floating-point element-type fix</b> for matrices built by comprehension (we found, root-caused, and fixed it).</li>
     </ul>
-    <p>Now <em>other people</em> can verify PyTorch-style code too — not just us.</p>
+    <blockquote class="small">Result: PyTorch-style code is now verifiable in ESBMC <b>at all</b> — reusable by anyone.</blockquote>
   </section>
 
   <section class="slide">
     <h2>Where we are · what’s next</h2>
     <ul>
       <li><span class="ok">✅</span> Motivating <b>QKV</b> example <strong>fully supported</strong> (two encodings, exact proof).</li>
-      <li><span class="ok">✅</span> Extended to a <b>second</b> case: bias-fused linear (<code>X·W + b</code>).</li>
-      <li>⏭️ <b>Bigger matrices</b> and fully native fuse/split — gated on <b>one</b> performance improvement upstream.</li>
+      <li><span class="ok">✅</span> Extended to a <b>second</b> class: bias-fused linear (<code>X·W + b</code>).</li>
+      <li>⏭️ <b>Bigger matrices</b> and fully native fuse/split — gated on <b>one</b> performance improvement upstream (see Performance, backup).</li>
     </ul>
   </section>
 
   <section class="slide lead">
     <h2>Takeaway</h2>
-    <p style="max-width:42ch">We can now <strong>prove</strong> — automatically, for <strong>every</strong> input — that a fast PyTorch rewrite computes <strong>exactly</strong> the same result as the original.</p>
-    <blockquote style="max-width:36ch"><em>Testing can only sample. This is a guarantee.</em></blockquote>
+    <p style="max-width:44ch">We can <strong>prove</strong> — automatically, for <strong>every modelled input</strong> — that a fast PyTorch rewrite computes <strong>exactly</strong> the same result as the original.</p>
+    <blockquote style="max-width:46ch"><em>Testing samples. This proves — and when it can’t, it hands you the bug.</em></blockquote>
+    <p class="sub">Use it to gate fusions and compiler rewrites before they ship.</p>
+  </section>
+
+  <section class="slide appendix lead">
+    <span class="tag">BACKUP</span>
+    <h1>Backup slides</h1>
+    <p class="muted">Assumptions · Under the hood · Performance</p>
+  </section>
+
+  <section class="slide appendix">
+    <span class="tag">BACKUP</span>
+    <h2>Assumptions &amp; Scope</h2>
+    <p><b>What we prove</b></p>
+    <ul>
+      <li>Equivalence of the two programs <em>as written</em>, for <b>all inputs in the modelled range</b>.</li>
+      <li>Floating-point modelled <b>exactly</b> (IEEE-754, bit-precise) — not real arithmetic, not a hand-waved tolerance.</li>
+    </ul>
+    <p><b>What we model / bound</b></p>
+    <ul>
+      <li><b>Fixed tensor sizes</b> (bounded model checking; concrete, e.g. <code>S=1, D=2, H=1</code>).</li>
+      <li><b>Inputs bounded</b> to a finite range, which excludes <code>NaN</code>/<code>Inf</code>.</li>
+    </ul>
+    <p><b>What we do <em>not</em> claim:</b> arbitrary/symbolic sizes · performance equivalence · behaviour outside the bounds.</p>
+  </section>
+
+  <section class="slide appendix">
+    <span class="tag">BACKUP</span>
+    <h2>Under the hood: how verification works</h2>
+    <ul>
+      <li>ESBMC <b>unrolls</b> the program (fixed sizes ⇒ finite) and turns each <code>assert</code> into a <b>verification condition</b>.</li>
+      <li>Tensors are modelled as lists of <b>IEEE-754 floats</b>; <code>torch.mm</code> / <code>torch.allclose</code> have operational models.</li>
+      <li>The condition is essentially: <em>for all bounded inputs,</em> <code>fused[i][j] == unfused[i][j]</code>.</li>
+      <li>An <b>SMT solver</b> (Bitwuzla / Z3) decides it: <b>UNSAT ⇒ proved</b>; <b>SAT ⇒ counterexample</b>.</li>
+    </ul>
+    <pre>X, Wq, Wk, Wv = symbolic, bounded        # any numbers in range
+assert torch.allclose(unfused, fused)    # → one SMT formula over FP</pre>
+  </section>
+
+  <section class="slide appendix">
+    <span class="tag">BACKUP</span>
+    <h2>Performance &amp; current limits</h2>
+    <table>
+      <tr><th>Check</th><th>Time (Bitwuzla, macOS arm64)</th></tr>
+      <tr><td>scalar QKV proof</td><td>~11 s</td></tr>
+      <tr><td>torch-native QKV proof</td><td>~110 s</td></tr>
+      <tr><td>refuting a broken variant</td><td>31 – 292 s</td></tr>
+    </table>
+    <ul>
+      <li>Cost grows quickly with tensor size (more multiply-adds → a bigger FP formula).</li>
+      <li><code>torch.cat</code> / <code>torch.split</code> are modelled but <b>unwinding-heavy</b> (a 1×1×3 <code>cat</code>+<code>split</code> ≈ 2.5 min) → we fuse/split by manual indexing for now.</li>
+      <li><strong>Scaling to realistic sizes is the main open bottleneck</strong> (tracked upstream).</li>
+    </ul>
   </section>
 
 </div>
