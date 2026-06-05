@@ -41,13 +41,13 @@ But how do we *know* the faster version computes the **same thing** as the origi
 - A rewrite that is *almost* identical can silently change the results.
 - Silently wrong math → wrong predictions, bugs that are very hard to find.
 
-> We want a way to be **sure**, not hopeful.
+> We want a way to be **sure**, not hopeful — to **check an optimised version before it ships to production**.
 
 ---
 
 ## Our example: the "QKV" step inside every Transformer
 
-Attention models (the engine behind modern AI) build three things — **Q**, **K**, **V** — from the input `X` using three weight matrices.
+Attention models — the **Transformer** design behind modern AI (e.g. ChatGPT) — build three things, **Q**, **K**, **V** *(intermediate matrices that decide what the model "pays attention" to)*, from the input `X` using three weight matrices.
 
 **The clear way** (unfused) — three separate matrix multiplications:
 
@@ -81,6 +81,8 @@ These **should** give identical results. The question: do they — *always*?
 
 ESBMC proves these two produce **the same result for every input we model**.
 
+> So: a **faster implementation can be proven to behave exactly like the original**.
+
 ---
 
 ## How we check today: we test
@@ -93,11 +95,15 @@ We run the program on a **handful of example inputs** and compare.
 - A bug hiding in some other input is simply **missed**.
 - **Passing tests ≠ correct.**
 
+> **Testing gives confidence. Proof gives guarantees.**
+
 ---
 
 ## What we actually want: a proof, not a sample
 
 Instead of trying a few inputs, check **every input we model — all at once** — mathematically.
+
+*"Model" here = a defined tensor size and a bounded input range — not arbitrarily large programs.*
 
 Two possible outcomes:
 
@@ -114,10 +120,12 @@ Either way, you learn something certain.
 
 1. It **reads the program** and turns the question
    *"are these two always equal?"* into one giant logic puzzle.
-2. An automated **solver** then either finds an input that breaks it,
-   or proves that **no such input exists** (within the model).
+2. An automated **solver** *(a program that checks mathematical statements automatically)*
+   then either finds an input that breaks it, or proves that **no such input exists** (within the model).
 
 **Fully automated** once the program is encoded — you write **no** proofs by hand.
+
+> The same kind of automated checking is **widely used in chip design and safety-critical software** (aerospace, automotive, medical).
 
 ---
 
@@ -125,7 +133,7 @@ Either way, you learn something certain.
 
 | Ordinary test | Our verification |
 | --- | --- |
-| one **random** tensor `torch.randn(...)` | a **symbolic** tensor = *any* numbers (bounded) |
+| one **random** tensor `torch.randn(...)` | a **symbolic** tensor — one value standing for *all possible inputs at once* (bounded) |
 | checks that one case | checks the **whole modelled range at once** |
 | "looks fine" | a **guarantee — within the model** |
 
@@ -137,7 +145,7 @@ We assert `unfused result == fused result`, feed it *any* input in range, and le
 
 ## Result: the example is PROVEN correct
 
-- ✅ Proven equal for **all inputs we model** — and **bit-for-bit exact** (IEEE-754), not a "close enough" tolerance.
+- ✅ Proven equal for **all inputs we model** — and **bit-for-bit exact** (IEEE-754, the standard computer number format), not a "close enough" tolerance.
 - ✅ Done **two ways**: a plain-math encoding **and** the *real* `torch.mm` + `torch.allclose`.
 - ✅ When we **deliberately break it** (swap two columns), ESBMC **catches it** and shows the exact failing input.
 
@@ -174,7 +182,7 @@ So every case is double-checked: we prove the correct version *and* confirm a br
 
 ## A bonus: we made the tool itself stronger
 
-Real PyTorch-style code pushed ESBMC into territory it could not yet handle — so we **added what was missing** (4 contributions merged upstream):
+**In short: we taught ESBMC to understand PyTorch-style code** — 4 contributions merged upstream:
 
 - A **`torch` operational model** — `mm`, `matmul`, `cat`, `split`, `allclose`.
 - Fixes so **matrix math over nested lists works** — values/types survive function returns and copies.
@@ -188,7 +196,7 @@ Real PyTorch-style code pushed ESBMC into territory it could not yet handle — 
 
 - ✅ Motivating **QKV** example **fully supported** (two encodings, exact proof).
 - ✅ Extended to a **second** class: bias-fused linear (`X·W + b`).
-- ⏭️ **Bigger matrices** and fully native fuse/split — gated on **one** performance improvement upstream (see *Performance*, backup).
+- ⏭️ Today this runs on **small examples**; scaling to large, real-world models is **ongoing work** (see *Performance*, backup).
 
 ---
 
@@ -196,12 +204,13 @@ Real PyTorch-style code pushed ESBMC into territory it could not yet handle — 
 
 ## Takeaway
 
-We can **prove** — automatically, for **every modelled input** —
-that a fast PyTorch rewrite computes **exactly** the same result as the original.
+**You can automatically check that a faster version of your code gives exactly the same result — before it ships and causes bugs.**
 
 *Testing samples. This proves — and when it can't, it hands you the bug.*
 
-**Use it to gate fusions and compiler rewrites before they ship.**
+<br>
+
+For all inputs within a defined size and range · today on small examples · scaling is ongoing.
 
 ---
 
