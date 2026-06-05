@@ -22,7 +22,7 @@ interactive proof (Lean) + LLM-agent** positioning.
 | **`poc-status-expert.md`** | Expert Marp markdown. |
 
 Both decks share the **side-by-side QKV diagram** (unfused three matmuls vs. fused
-one-matmul-and-split). The non-expert deck is 18 slides; the expert deck is 14.
+one-matmul-and-split). The non-expert deck is 18 slides; the expert deck is 15.
 
 ## Regenerating
 
