@@ -62,7 +62,7 @@
   <section class="slide">
     <h2>Problem &amp; threat model</h2>
     <p>Optimising transformations — <strong>operator fusion, kernel rewrites, compiler passes</strong> — must be semantics-preserving. We decide:</p>
-    <p class="eq">∀ X, W ∈ range.&nbsp;&nbsp; P<sub>unfused</sub>(X,W) ≡ P<sub>fused</sub>(X,W)</p>
+    <p class="eq">∀ X, W with entries in [−10, 10].&nbsp;&nbsp; P<sub>unfused</sub>(X,W) ≡ P<sub>fused</sub>(X,W)</p>
     <ul>
       <li><b>Testing</b> under-approximates: it samples a finite input set.</li>
       <li>We want <b>exhaustive</b> equivalence over an input region, with <b>bit-precise IEEE-754</b> (where fusion breaks: reassociation, rounding).</li>
@@ -113,7 +113,7 @@
     <h2>The embedding (1/2): encoding design</h2>
     <p>The program <strong>acts as the specification</strong> under the assumed operational model (correctness depends on the OM's faithfulness) — no separate spec to maintain.</p>
     <ul>
-      <li><b>Tensors</b> → nested lists; <b>ops</b> → operational model <code>torch.py</code> (<code>mm/matmul/cat/split/allclose</code>), pure-Python, float-typed, FLAIL-baked.</li>
+      <li><b>Tensors</b> → nested lists; <b>ops</b> → operational model <code>torch.py</code> (<code>mm/matmul/cat/split/allclose</code>), pure-Python, float-typed, compiled into the ESBMC binary.</li>
       <li><b>Inputs</b> → symbolic <code>nondet_float()</code> with <code>__ESBMC_assume</code> bounds (excludes NaN/Inf ⇒ finite FP domain).</li>
       <li><b>Shapes</b> → dimensions are <b>fixed and well-typed</b>; shape compatibility is assumed.</li>
       <li><b>Property</b> → exact (<code>==</code> / <code>allclose(rtol=0, atol=0)</code>) or tolerance (<code>allclose</code> defaults).</li>
@@ -123,10 +123,10 @@
 
   <section class="slide">
     <h2>The embedding (2/2): example harness</h2>
-    <pre>X = [[bounded() for _ in range(D)] for _ in range(S)]   # symbolic, bounded
-QKV = torch.mm(X, cat(Wq, Wk, Wv))                     # operational model
+    <pre>X   = [[bounded() for _ in range(D)] for _ in range(S)]   # symbolic, bounded
+QKV = torch.mm(X, torch.cat([Wq, Wk, Wv], dim=1))        # fused weight (cat, dim=1)
 assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
-    <p>Symbolic bounded inputs; the matmul goes through the operational model; the property asserts exact (zero-tolerance) equivalence of the unfused and fused <em>Q</em>.</p>
+    <p>Symbolic bounded inputs; the matmul goes through the operational model; the property asserts exact (zero-tolerance) equivalence of the unfused and fused <em>Q</em>. <em>(In the PoC, <code>cat</code>/<code>split</code> are realised by manual column indexing — <code>torch.cat</code>/<code>split</code> are unwinding-heavy.)</em></p>
   </section>
 
   <section class="slide">

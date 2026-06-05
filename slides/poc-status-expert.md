@@ -36,7 +36,7 @@ Proof-of-concept · status update *(expert version)*
 Optimising transformations — **operator fusion, kernel rewrites, compiler passes** —
 must be *semantics-preserving*. We want to decide:
 
-$$\forall\, X, W \in \text{range}.\quad P_{\text{unfused}}(X,W) \equiv P_{\text{fused}}(X,W)$$
+$$\forall\, X, W \text{ with entries in } [-10,10].\quad P_{\text{unfused}}(X,W) \equiv P_{\text{fused}}(X,W)$$
 
 - **Testing** under-approximates: it samples a finite input set.
 - We want **exhaustive** equivalence over an input region, with **bit-precise IEEE-754**
@@ -84,7 +84,7 @@ The program **acts as the specification** under the assumed operational model
 
 - **Tensors** → nested Python lists; **ops** → an operational model `torch.py`
   (`mm`, `matmul`, `cat`, `split`, `allclose`) — pure-Python, float-typed reference
-  semantics, FLAIL-baked into ESBMC.
+  semantics, compiled into the ESBMC binary.
 - **Inputs** → symbolic `nondet_float()` with `__ESBMC_assume` range bounds
   (excludes NaN/Inf ⇒ finite FP domain).
 - **Shapes** → dimensions are **fixed and well-typed**; shape compatibility is assumed.
@@ -97,13 +97,14 @@ The program **acts as the specification** under the assumed operational model
 ## The embedding (2/2): example harness
 
 ```python
-X  = [[bounded() for _ in range(D)] for _ in range(S)]   # symbolic, bounded
-QKV = torch.mm(X, cat(Wq, Wk, Wv))                       # operational model
+X   = [[bounded() for _ in range(D)] for _ in range(S)]   # symbolic, bounded
+QKV = torch.mm(X, torch.cat([Wq, Wk, Wv], dim=1))        # fused weight (cat, dim=1)
 assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact
 ```
 
 Symbolic bounded inputs; the matmul goes through the operational model; the property
-asserts exact (zero-tolerance) equivalence of the unfused and fused *Q*.
+asserts exact (zero-tolerance) equivalence of the unfused and fused *Q*. *(In the PoC,
+`cat`/`split` are realised by manual column indexing — `torch.cat`/`split` are unwinding-heavy.)*
 
 ---
 
