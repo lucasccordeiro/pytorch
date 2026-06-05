@@ -5,7 +5,7 @@ frontend to **formal equivalence of two PyTorch programs** — proving that a
 fused and an unfused implementation of the same computation produce identical
 results for *all* admissible inputs, not just one random sample.
 
-Driving example (from Eduardo Valentin): the **QKV projection** in attention.
+Driving example: the **QKV projection** in attention.
 
 ```python
 # A (unfused)              # B (fused)

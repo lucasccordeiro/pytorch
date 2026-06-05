@@ -1,6 +1,6 @@
 # Formal equivalence proof: fused vs. unfused QKV projection (PyTorch), via ESBMC.
 #
-# Original PyTorch programs (Eduardo Valentin):
+# Original PyTorch programs:
 #   A (unfused): Q = X@Wq ; K = X@Wk ; V = X@Wv
 #   B (fused):   W = cat([Wq,Wk,Wv], dim=1) ; QKV = X@W ; Q,K,V = split(QKV)
 # The original harness compared ONE random sample with torch.allclose(...).
