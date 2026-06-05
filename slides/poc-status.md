@@ -241,6 +241,7 @@ For all inputs within a defined size and range · today on small examples · sca
 **What we do *not* claim**
 
 - Arbitrary or symbolic sizes · performance equivalence · behaviour outside the bounds.
+- We model a **sequential reference** semantics — not backend-specific optimisations (FMA, parallel reductions, cuBLAS).
 
 ---
 

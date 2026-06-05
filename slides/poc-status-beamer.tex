@@ -109,7 +109,7 @@
     \draw[arr] (xu) -- (K) node[op]{$\times W_k$};
     \node[above=1mm of V,text=accent,font=\footnotesize\bfseries] {Unfused: three matmuls};
 
-    \node[box,below=14mm of xu] (xf) {$X$};
+    \node[box,below=15mm of xu] (xf) {$X$};
     \node[box,right=16mm of xf] (W) {$W{=}[W_q|W_k|W_v]$};
     \node[box,right=14mm of W] (QKV) {$\mathit{QKV}$};
     \node[res,right=16mm of QKV] (Qf) {$Q$};
@@ -122,9 +122,9 @@
     \draw[arr] (QKV) -- (Kf) node[op,font=\tiny\itshape]{};
     \node[below=1mm of Kf,text=accent,font=\footnotesize\bfseries] {Fused: one matmul {+} split};
 
-    \node[draw=ok,rounded corners,fill=ok!8,text=ok,font=\footnotesize\bfseries,
-          right=8mm of Q,yshift=-13mm,align=center] (eq)
-      {$\equiv$ \\ proven\\ equal};
+    \node[draw=ok,rounded corners,fill=ok!8,text=ok,font=\scriptsize\bfseries,
+          right=14mm of Q,yshift=-9mm,align=center] (eq)
+      {$\equiv$ equal};
   \end{tikzpicture}
 
   \smallskip
@@ -344,7 +344,8 @@
   \end{itemize}
 
   \textbf{What we do \emph{not} claim:} arbitrary/symbolic sizes $\cdot$ performance equivalence
-  $\cdot$ behaviour outside the bounds.
+  $\cdot$ behaviour outside the bounds $\cdot$ backend-specific optimisations (FMA, parallel
+  reductions, cuBLAS) --- we model a sequential reference.
 \end{frame}
 
 % ---------------------------------------------------------------

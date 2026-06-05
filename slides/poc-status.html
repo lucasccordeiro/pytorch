@@ -119,9 +119,8 @@
       <text class="op" x="150" y="76">× Wv</text>
       <text class="op" x="150" y="106">× Wq</text>
       <text class="op" x="150" y="150">× Wk</text>
-      <rect x="446" y="120" width="92" height="56" rx="10" fill="#eaf6ee" stroke="#1a7f37" stroke-width="1.5"/>
-      <text x="492" y="144" text-anchor="middle" font-size="20" fill="#1a7f37" font-weight="700">≡</text>
-      <text x="492" y="166" text-anchor="middle" font-size="14" fill="#1a7f37" font-weight="700">proven equal</text>
+      <rect x="478" y="148" width="132" height="42" rx="10" fill="#eaf6ee" stroke="#1a7f37" stroke-width="1.5"/>
+      <text x="544" y="175" text-anchor="middle" font-size="17" fill="#1a7f37" font-weight="700">≡ proven equal</text>
       <rect class="bx" x="40"  y="300" width="64" height="46" rx="8"/><text class="t" x="72" y="329" text-anchor="middle">X</text>
       <rect class="bx" x="150" y="300" width="190" height="46" rx="8"/><text class="t" x="245" y="329" text-anchor="middle" font-size="17">W = [Wq | Wk | Wv]</text>
       <rect class="bx" x="392" y="300" width="78" height="46" rx="8"/><text class="t" x="431" y="329" text-anchor="middle" font-size="18">QKV</text>
@@ -270,7 +269,7 @@
       <li><b>Fixed tensor sizes</b> (bounded model checking; concrete, e.g. <code>S=1, D=2, H=1</code>).</li>
       <li><b>Inputs bounded</b> to a finite range, which excludes <code>NaN</code>/<code>Inf</code>.</li>
     </ul>
-    <p><b>What we do <em>not</em> claim:</b> arbitrary/symbolic sizes · performance equivalence · behaviour outside the bounds.</p>
+    <p><b>What we do <em>not</em> claim:</b> arbitrary/symbolic sizes · performance equivalence · behaviour outside the bounds · backend-specific optimisations (FMA, parallel reductions, cuBLAS) — we model a sequential reference.</p>
   </section>
 
   <section class="slide appendix">
