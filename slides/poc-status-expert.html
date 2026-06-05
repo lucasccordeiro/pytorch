@@ -202,7 +202,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
       <tr><td>Order-preserving QKV</td><td><code>rfl</code>, ∀ dims, ~5 s</td><td>per-shape, bit-FP, ~110 s</td></tr>
       <tr><td>Reassociating fusion</td><td>unsound for FP, <b>no c.ex.</b></td><td><b>finds FP counterexample</b></td></tr>
     </table>
-    <p class="muted small">ITP wins generality; BMC wins bit-precise FP + counterexamples — complementary. (Artefact: <code>lean/</code>.)</p>
+    <p class="muted small">ITP wins generality; BMC wins bit-precise FP + counterexamples — complementary. (ESBMC's <code>--ir</code> reaches ~3 s on the scalar proof, ≈ Lean, but abstracts FP and diverges on refutation/OM. Artefact + numbers: <code>lean/</code>.)</p>
   </section>
 
   <section class="slide">

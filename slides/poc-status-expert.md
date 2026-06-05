@@ -193,7 +193,7 @@ Same QKV equivalence in **Lean 4** (no Mathlib, ~30 LOC; agent = LLM-authored pr
 | Order-preserving QKV | `rfl`, ∀ dims, ~5 s | per-shape, bit-FP, ~110 s |
 | Reassociating fusion | unsound for FP, **no c.ex.** | **finds FP counterexample** |
 
-ITP wins generality; BMC wins bit-precise FP + counterexamples — complementary. *(Artefact: `lean/`.)*
+ITP wins generality; BMC wins bit-precise FP + counterexamples — complementary. *(ESBMC's `--ir` reaches ~3 s on the scalar proof, ≈ Lean, but abstracts FP and diverges on refutation/OM. Artefact + numbers: `lean/`.)*
 
 ---
 
