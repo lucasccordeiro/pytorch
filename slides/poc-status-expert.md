@@ -43,6 +43,8 @@ $$\forall\, X, W \in \text{range}.\quad P_{\text{unfused}}(X,W) \equiv P_{\text{
   semantics (where fusion actually breaks: reassociation, rounding, NaN/Inf).
 - Two verdicts: **proof** (UNSAT) or a **concrete counterexample** (SAT).
 
+*Checked under a **sequential IEEE-754 semantics** (the operational model). **Not modelled:** backend-specific optimisations (FMA, cuBLAS), parallel/tree reductions, non-deterministic scheduling.*
+
 ---
 
 ## Running example: QKV projection
@@ -54,8 +56,8 @@ $$
 $$
 
 The fused column $j$ is the **identical multiply–add sequence** as the corresponding
-unfused projection ⇒ the two are equal **bit-for-bit** in IEEE-754, not merely within a
-tolerance. Both claims are checked (below).
+unfused projection ⇒ the two are equal **bit-for-bit under the same evaluation order**
+(sequential IEEE-754), not merely within a tolerance. Both claims are checked (below).
 
 ---
 
@@ -75,9 +77,10 @@ tolerance. Both claims are checked (below).
 
 ---
 
-## The embedding: how the program enters the verifier
+## The embedding (1/2): encoding design
 
-The harness **is** the program — no separate spec to maintain.
+The program **acts as the specification** under the assumed operational model
+(correctness depends on the OM's faithfulness) — no separate spec to maintain.
 
 - **Tensors** → nested Python lists; **ops** → an operational model `torch.py`
   (`mm`, `matmul`, `cat`, `split`, `allclose`) — pure-Python, float-typed reference
@@ -88,11 +91,18 @@ The harness **is** the program — no separate spec to maintain.
   tolerance (`allclose` defaults `1e-5/1e-8`).
 - **Two encodings**: scalar-unrolled (no OM) **and** torch-native (through the OM).
 
+---
+
+## The embedding (2/2): example harness
+
 ```python
 X  = [[bounded() for _ in range(D)] for _ in range(S)]   # symbolic, bounded
-QKV = torch.mm(X, cat_cols(Wq, Wk, Wv))                  # operational model
+QKV = torch.mm(X, cat(Wq, Wk, Wv))                       # operational model
 assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact
 ```
+
+Symbolic bounded inputs; the matmul goes through the operational model; the property
+asserts exact (zero-tolerance) equivalence of the unfused and fused *Q*.
 
 ---
 
@@ -105,6 +115,7 @@ Python frontend → **GOTO** → symbolic execution → **VCs** → SMT.
 - **Bit-precise IEEE-754** in the FP theory (Bitwuzla / Z3); rounding is modelled, not abstracted.
 - **UNSAT ⇒ proved** over the region; **SAT ⇒ the falsifying assignment** is reported.
 - TCB: the Python frontend + operational model + SMT solver.
+- **Not modelled**: backend-specific optimisations (FMA, parallel/tree reductions, cuBLAS) — we verify the reference operational semantics, not a specific GPU kernel.
 
 ---
 
@@ -119,8 +130,10 @@ each clean target paired with a refuted mutant. Bitwuzla, fixed dims (S=1,D=2,H=
 | `qkv_equivalence` | scalar tolerance | SUCCESSFUL | 12 s |
 | `qkv_equivalence_torch_exact` | `allclose(0,0)` | SUCCESSFUL | 122 s |
 | `qkv_equivalence_torch` | `allclose` defaults | SUCCESSFUL | 124 s |
-| `*_buggy` (×3, swap/zero) | refutation | FAILED (+ c.ex.) | 35–338 s |
-| `bias_linear` (+`_buggy`) | `X·W+b` ≡ `[X\|1]·[W;b]` | SUCCESSFUL / FAILED | 35–135 s |
+| `*_buggy` (×3, swap/zero) | refutation | VIOLATED (c.ex.) | 35–338 s |
+| `bias_linear` (+`_buggy`) | `X·W+b` ≡ `[X\|1]·[W;b]` | SUCCESSFUL / VIOLATED | 35–135 s |
+
+**Legend:** ✓ SUCCESSFUL = property holds (UNSAT); ✗ VIOLATED = counterexample found (SAT). The `*_buggy` targets are intentional mutants, so a counterexample is the **desired** outcome (non-vacuity check).
 
 ---
 
@@ -141,7 +154,7 @@ Driving real PyTorch-style code through ESBMC required fixing the embedding path
 
 | Aspect | **ESBMC (BMC)** | **Lean (ITP) + LLM agent** |
 | --- | --- | --- |
-| Embedding effort | the program **is** the spec (write both, assert `≡`) | embed tensor + FP semantics, **state** the theorem |
+| Embedding effort | program acts as spec under the OM (write both, assert `≡`) | embed tensor + FP semantics, **state** the theorem |
 | Automation | push-button: auto VC-gen + SMT | interactive; an agent can drive tactic search, but proofs need guidance |
 | FP semantics | **bit-precise IEEE-754** native | must be modelled/axiomatised; bit-level reasoning is heavy |
 | Counterexamples | **concrete falsifying input** (SAT) | none by default (failed proof ≠ witness) |
@@ -160,7 +173,7 @@ Driving real PyTorch-style code through ESBMC required fixing the embedding path
   is the real cost the reviewer is asking about).
 
 > For "is this fusion correct for the shapes we deploy?", push-button BMC with bit-precise FP
-> and counterexamples is hard to beat.
+> and counterexamples is highly effective in practice.
 
 ---
 
@@ -172,6 +185,8 @@ Driving real PyTorch-style code through ESBMC required fixing the embedding path
 - ⏭️ A like-for-like **Lean + agent** encoding of the same equivalence, to quantify the
   encoding/proof effort empirically.
 
+*Scalability is bounded by **SMT solving over floating-point arithmetic** and **loop unwinding** — cost grows rapidly with tensor size and FP-operation count.*
+
 ---
 
 <!-- _class: lead -->
@@ -181,5 +196,10 @@ Driving real PyTorch-style code through ESBMC required fixing the embedding path
 Bounded model checking gives an **automatic, bit-precise, counterexample-producing**
 equivalence check for PyTorch rewrites — at the cost of being **bounded**.
 
-The encoding cost is low (the program is the spec) once the operational model exists;
-interactive proof buys generality at a higher encoding/proof cost and **no counterexamples**.
+The encoding cost is **relatively low once the operational model is available** (the program
+acts as the spec); interactive proof buys generality at a higher encoding/proof cost and
+**no counterexamples**.
+
+<br>
+
+*All results are reproducible via the ESBMC harnesses and the `torch` operational model (`make verify`).*

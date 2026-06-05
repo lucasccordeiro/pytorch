@@ -68,13 +68,14 @@
       <li>We want <b>exhaustive</b> equivalence over an input region, with <b>bit-precise IEEE-754</b> (where fusion breaks: reassociation, rounding, NaN/Inf).</li>
       <li>Two verdicts: <b>proof</b> (UNSAT) or a <b>concrete counterexample</b> (SAT).</li>
     </ul>
+    <p class="muted small">Checked under a <b>sequential IEEE-754 semantics</b> (the operational model). <b>Not modelled:</b> backend-specific optimisations (FMA, cuBLAS), parallel/tree reductions, non-deterministic scheduling.</p>
   </section>
 
   <section class="slide">
     <h2>Running example: QKV projection</h2>
     <p class="eq">unfused:&nbsp; Q = X·Wq,&nbsp; K = X·Wk,&nbsp; V = X·Wv</p>
     <p class="eq">fused:&nbsp; W = [Wq | Wk | Wv],&nbsp; QKV = X·W,&nbsp; split</p>
-    <p style="margin-top:.6em">The fused column <em>j</em> is the <strong>identical multiply–add sequence</strong> as the corresponding unfused projection ⇒ the two are equal <strong>bit-for-bit</strong> in IEEE-754, not merely within a tolerance. Both claims are checked.</p>
+    <p style="margin-top:.6em">The fused column <em>j</em> is the <strong>identical multiply–add sequence</strong> as the corresponding unfused projection ⇒ the two are equal <strong>bit-for-bit under the same evaluation order</strong> (sequential IEEE-754), not merely within a tolerance. Both claims are checked.</p>
   </section>
 
   <section class="slide">
@@ -94,9 +95,8 @@
       <rect class="rs" x="330" y="164" width="56" height="40" rx="8"/><text class="t" x="358" y="190" text-anchor="middle">K</text>
       <path class="ar" d="M104,98 C200,80 250,70 330,64"/><path class="ar" d="M104,103 C210,110 250,118 330,124"/><path class="ar" d="M104,108 C200,150 250,170 330,184"/>
       <text class="op" x="150" y="76">× Wv</text><text class="op" x="150" y="106">× Wq</text><text class="op" x="150" y="150">× Wk</text>
-      <rect x="444" y="118" width="96" height="60" rx="10" fill="#eaf6ee" stroke="#1a7f37" stroke-width="1.5"/>
-      <text x="492" y="142" text-anchor="middle" font-size="20" fill="#1a7f37" font-weight="700">≡</text>
-      <text x="492" y="164" text-anchor="middle" font-size="13" fill="#1a7f37" font-weight="700">bit-for-bit</text>
+      <rect x="498" y="148" width="96" height="42" rx="10" fill="#eaf6ee" stroke="#1a7f37" stroke-width="1.5"/>
+      <text x="546" y="175" text-anchor="middle" font-size="17" fill="#1a7f37" font-weight="700">≡ exact</text>
       <rect class="bx" x="40" y="300" width="64" height="46" rx="8"/><text class="t" x="72" y="329" text-anchor="middle">X</text>
       <rect class="bx" x="150" y="300" width="190" height="46" rx="8"/><text class="t" x="245" y="329" text-anchor="middle" font-size="17">W = [Wq | Wk | Wv]</text>
       <rect class="bx" x="392" y="300" width="78" height="46" rx="8"/><text class="t" x="431" y="329" text-anchor="middle" font-size="18">QKV</text>
@@ -105,22 +105,27 @@
       <rect class="rs" x="620" y="358" width="52" height="38" rx="8"/><text class="t" x="646" y="383" text-anchor="middle">K</text>
       <path class="ar" d="M104,323 L150,323"/><path class="ar" d="M340,323 L392,323"/>
       <path class="ar" d="M470,318 C540,300 570,280 620,270"/><path class="ar" d="M470,323 L620,323"/><path class="ar" d="M470,328 C540,348 570,368 620,377"/>
-      <text class="op" x="112" y="316">concat</text><text class="op" x="350" y="316">X × W</text><text class="op" x="520" y="316">split</text>
+      <text class="op" x="120" y="316">cat</text><text class="op" x="350" y="316">X × W</text><text class="op" x="520" y="316">split</text>
     </svg>
   </section>
 
   <section class="slide">
-    <h2>The embedding: how the program enters the verifier</h2>
-    <p>The harness <strong>is</strong> the program — no separate spec to maintain.</p>
+    <h2>The embedding (1/2): encoding design</h2>
+    <p>The program <strong>acts as the specification</strong> under the assumed operational model (correctness depends on the OM's faithfulness) — no separate spec to maintain.</p>
     <ul>
       <li><b>Tensors</b> → nested lists; <b>ops</b> → operational model <code>torch.py</code> (<code>mm/matmul/cat/split/allclose</code>), pure-Python, float-typed, FLAIL-baked.</li>
       <li><b>Inputs</b> → symbolic <code>nondet_float()</code> with <code>__ESBMC_assume</code> bounds (excludes NaN/Inf).</li>
       <li><b>Property</b> → exact (<code>==</code> / <code>allclose(rtol=0, atol=0)</code>) or tolerance (<code>allclose</code> defaults).</li>
       <li><b>Two encodings</b>: scalar-unrolled (no OM) <b>and</b> torch-native.</li>
     </ul>
+  </section>
+
+  <section class="slide">
+    <h2>The embedding (2/2): example harness</h2>
     <pre>X = [[bounded() for _ in range(D)] for _ in range(S)]   # symbolic, bounded
-QKV = torch.mm(X, cat_cols(Wq, Wk, Wv))                # operational model
+QKV = torch.mm(X, cat(Wq, Wk, Wv))                     # operational model
 assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
+    <p>Symbolic bounded inputs; the matmul goes through the operational model; the property asserts exact (zero-tolerance) equivalence of the unfused and fused <em>Q</em>.</p>
   </section>
 
   <section class="slide">
@@ -131,6 +136,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
       <li><b>Bit-precise IEEE-754</b> FP theory (Bitwuzla / Z3); rounding modelled, not abstracted.</li>
       <li><b>UNSAT ⇒ proved</b> over the region; <b>SAT ⇒ the falsifying assignment</b>.</li>
       <li>TCB: Python frontend + operational model + SMT solver.</li>
+      <li><b>Not modelled</b>: backend-specific optimisations (FMA, parallel/tree reductions, cuBLAS) — we verify the reference operational semantics, not a specific GPU kernel.</li>
     </ul>
   </section>
 
@@ -143,9 +149,10 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
       <tr><td><code>qkv_equivalence</code></td><td>scalar tolerance</td><td class="ok">SUCCESSFUL</td><td>12 s</td></tr>
       <tr><td><code>qkv_equivalence_torch_exact</code></td><td><code>allclose(0,0)</code></td><td class="ok">SUCCESSFUL</td><td>122 s</td></tr>
       <tr><td><code>qkv_equivalence_torch</code></td><td><code>allclose</code> defaults</td><td class="ok">SUCCESSFUL</td><td>124 s</td></tr>
-      <tr><td><code>*_buggy</code> (×3)</td><td>refutation</td><td class="bad">FAILED + c.ex.</td><td>35–338 s</td></tr>
-      <tr><td><code>bias_linear</code> (+buggy)</td><td><code>X·W+b ≡ [X|1]·[W;b]</code></td><td>SUCCESSFUL / FAILED</td><td>35–135 s</td></tr>
+      <tr><td><code>*_buggy</code> (×3)</td><td>refutation</td><td class="bad">VIOLATED (c.ex.)</td><td>35–338 s</td></tr>
+      <tr><td><code>bias_linear</code> (+buggy)</td><td><code>X·W+b ≡ [X|1]·[W;b]</code></td><td>SUCCESSFUL / VIOLATED</td><td>35–135 s</td></tr>
     </table>
+    <p class="muted small"><b>Legend:</b> ✓ SUCCESSFUL = property holds (UNSAT); ✗ VIOLATED = counterexample found (SAT). The <code>*_buggy</code> targets are intentional mutants, so a counterexample is the <b>desired</b> outcome (non-vacuity check).</p>
   </section>
 
   <section class="slide">
@@ -163,7 +170,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
     <h2>ESBMC (BMC) vs Lean (ITP) + LLM agent</h2>
     <table>
       <tr><th>Aspect</th><th>ESBMC (BMC)</th><th>Lean (ITP) + LLM agent</th></tr>
-      <tr><td>Embedding effort</td><td>program <b>is</b> the spec (write both, assert ≡)</td><td>embed tensor + FP semantics, <b>state</b> the theorem</td></tr>
+      <tr><td>Embedding effort</td><td>program acts as spec under the OM (write both, assert ≡)</td><td>embed tensor + FP semantics, <b>state</b> the theorem</td></tr>
       <tr><td>Automation</td><td>push-button: auto VC-gen + SMT</td><td>interactive; agent drives tactic search, proofs need guidance</td></tr>
       <tr><td>FP semantics</td><td><b>bit-precise IEEE-754</b> native</td><td>modelled/axiomatised; bit-level reasoning heavy</td></tr>
       <tr><td>Counterexamples</td><td><b>concrete falsifying input</b> (SAT)</td><td>none by default</td></tr>
@@ -179,7 +186,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
       <li><b>Reach for ITP (Lean) for the size-general law:</b> ∀ shapes, machine-checked.</li>
       <li>They <b>compose</b>: BMC to find bugs and certify shipped configurations; ITP for the general theorem — where the <b>encoding + proof effort</b> and the <b>lack of FP counterexamples</b> is the real cost.</li>
     </ul>
-    <blockquote>For “is this fusion correct for the shapes we deploy?”, push-button BMC with bit-precise FP and counterexamples is hard to beat.</blockquote>
+    <blockquote>For “is this fusion correct for the shapes we deploy?”, push-button BMC with bit-precise FP and counterexamples is highly effective in practice.</blockquote>
   </section>
 
   <section class="slide">
@@ -189,12 +196,14 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
       <li>⏭️ <b>Scale</b>: larger/symbolic dims via k-induction; native <code>cat</code>/<code>split</code> (currently unwinding-heavy, #5121).</li>
       <li>⏭️ A like-for-like <b>Lean + agent</b> encoding of the same equivalence, to quantify the encoding/proof effort empirically.</li>
     </ul>
+    <p class="muted small">Scalability is bounded by <b>SMT solving over floating-point arithmetic</b> and <b>loop unwinding</b> — cost grows rapidly with tensor size and FP-operation count.</p>
   </section>
 
   <section class="slide lead">
     <h2>Summary</h2>
     <p style="max-width:60ch">Bounded model checking gives an <strong>automatic, bit-precise, counterexample-producing</strong> equivalence check for PyTorch rewrites — at the cost of being <strong>bounded</strong>.</p>
-    <blockquote style="max-width:60ch">The encoding cost is low (the program is the spec) once the operational model exists; interactive proof buys generality at a higher encoding/proof cost and <strong>no counterexamples</strong>.</blockquote>
+    <blockquote style="max-width:60ch">The encoding cost is <strong>relatively low once the operational model is available</strong> (the program acts as the spec); interactive proof buys generality at a higher encoding/proof cost and <strong>no counterexamples</strong>.</blockquote>
+    <p class="muted small">All results are reproducible via the ESBMC harnesses and the <code>torch</code> operational model (<code>make verify</code>).</p>
   </section>
 
 </div>

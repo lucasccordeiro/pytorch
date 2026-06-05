@@ -57,6 +57,10 @@
       \textbf{bit-precise IEEE-754} (where fusion breaks: reassociation, rounding, NaN/Inf).
     \item Two verdicts: \textbf{proof} (UNSAT) or a \textbf{concrete counterexample} (SAT).
   \end{itemize}
+  \medskip
+  {\footnotesize Checked under a \textbf{sequential IEEE-754 semantics} (the operational model).
+  \textbf{Not modelled:} backend-specific optimisations (FMA, cuBLAS), parallel/tree reductions,
+  non-deterministic scheduling.}
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -70,8 +74,8 @@
 
   \bigskip
   The fused column $j$ is the \textbf{identical multiply--add sequence} as the corresponding
-  unfused projection $\Rightarrow$ the two are equal \textbf{bit-for-bit} in IEEE-754, not merely
-  within a tolerance. Both claims are checked.
+  unfused projection $\Rightarrow$ the two are equal \textbf{bit-for-bit under the same
+  evaluation order} (sequential IEEE-754), not merely within a tolerance. Both claims are checked.
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -91,39 +95,49 @@
     \draw[arr] (xu) -- (Q) node[op]{$\times W_q$};
     \draw[arr] (xu) -- (K) node[op]{$\times W_k$};
     \node[above=1mm of V,text=accent,font=\footnotesize\bfseries] {Unfused: three matmuls};
-    \node[box,below=14mm of xu] (xf) {$X$};
+    \node[box,below=15mm of xu] (xf) {$X$};
     \node[box,right=16mm of xf] (W) {$W{=}[W_q|W_k|W_v]$};
     \node[box,right=14mm of W] (QKV) {$\mathit{QKV}$};
     \node[res,right=16mm of QKV] (Qf) {$Q$};
     \node[res,below=4mm of Qf] (Kf) {$K$};
     \node[res,above=4mm of Qf] (Vf) {$V$};
-    \draw[arr] (xf) -- (W) node[op]{concat};
+    \draw[arr] (xf) -- (W) node[op]{cat};
     \draw[arr] (W) -- (QKV) node[op]{$X\times W$};
     \draw[arr] (QKV) -- (Vf) node[op,font=\tiny\itshape]{};
     \draw[arr] (QKV) -- (Qf) node[op]{split};
     \draw[arr] (QKV) -- (Kf) node[op,font=\tiny\itshape]{};
     \node[below=1mm of Kf,text=accent,font=\footnotesize\bfseries] {Fused: one matmul {+} split};
-    \node[draw=ok,rounded corners,fill=ok!8,text=ok,font=\footnotesize\bfseries,
-          right=8mm of Q,yshift=-13mm,align=center] {$\equiv$ \\ bit-for-bit \\ equal};
+    \node[draw=ok,rounded corners,fill=ok!8,text=ok,font=\scriptsize\bfseries,
+          right=14mm of Q,yshift=-9mm,align=center] {$\equiv$ exact};
   \end{tikzpicture}
 \end{frame}
 
 % ---------------------------------------------------------------
-\begin{frame}[fragile]{The embedding: how the program enters the verifier}
-  The harness \textbf{is} the program --- no separate spec to maintain.
+\begin{frame}{The embedding (1/2): encoding design}
+  The program \textbf{acts as the specification} under the assumed operational model
+  (correctness depends on the OM's faithfulness) --- no separate spec to maintain.
   \begin{itemize}
     \item \textbf{Tensors} $\to$ nested lists; \textbf{ops} $\to$ operational model \texttt{torch.py}
       (\texttt{mm/matmul/cat/split/allclose}), pure-Python, float-typed, FLAIL-baked.
-    \item \textbf{Inputs} $\to$ symbolic \texttt{nondet\_float()} with \texttt{\_\_ESBMC\_assume} bounds.
+    \item \textbf{Inputs} $\to$ symbolic \texttt{nondet\_float()} with \texttt{\_\_ESBMC\_assume} bounds
+      (excludes NaN/Inf).
     \item \textbf{Property} $\to$ exact (\texttt{==} / \texttt{allclose(rtol=0,atol=0)}) or tolerance
       (\texttt{allclose} defaults).
     \item \textbf{Two encodings}: scalar-unrolled (no OM) \emph{and} torch-native.
   \end{itemize}
-  \begin{semiverbatim}\footnotesize
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{The embedding (2/2): example harness}
+  \begin{semiverbatim}\small
 X = [[bounded() for _ in range(D)] for _ in range(S)]  \# symbolic
-QKV = torch.mm(X, cat_cols(Wq, Wk, Wv))               \# operational model
+QKV = torch.mm(X, cat(Wq, Wk, Wv))                    \# operational model
 assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
   \end{semiverbatim}
+
+  \medskip
+  Symbolic bounded inputs; the matmul goes through the operational model; the property
+  asserts exact (zero-tolerance) equivalence of the unfused and fused $Q$.
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -135,6 +149,8 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
     \item \textbf{Bit-precise IEEE-754} FP theory (Bitwuzla / Z3); rounding modelled, not abstracted.
     \item \textbf{UNSAT $\Rightarrow$ proved} over the region; \textbf{SAT $\Rightarrow$ falsifying assignment}.
     \item TCB: Python frontend $+$ operational model $+$ SMT solver.
+    \item \textbf{Not modelled}: backend-specific optimisations (FMA, parallel/tree reductions,
+      cuBLAS) --- we verify the reference operational semantics, not a specific GPU kernel.
   \end{itemize}
 \end{frame}
 
@@ -152,10 +168,15 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
     \texttt{qkv\_equivalence} & scalar tolerance & \good\ SUCCESSFUL & 12 s \\
     \texttt{qkv\_equivalence\_torch\_exact} & \texttt{allclose(0,0)} & \good\ SUCCESSFUL & 122 s \\
     \texttt{qkv\_equivalence\_torch} & \texttt{allclose} def. & \good\ SUCCESSFUL & 124 s \\
-    \texttt{*\_buggy} ($\times 3$) & refutation & \bad\ FAILED (+\,c.ex.) & 35--338 s \\
+    \texttt{*\_buggy} ($\times 3$) & refutation & \bad\ violated (c.ex.) & 35--338 s \\
     \texttt{bias\_linear} (+\,buggy) & $XW{+}b \equiv [X|1][W;b]$ & \good\,/\,\bad & 35--135 s \\
     \bottomrule
   \end{tabular}
+
+  \medskip
+  {\footnotesize \textbf{Legend:} \good\ SUCCESSFUL = property holds (UNSAT);\quad
+  \bad\ VIOLATED = counterexample found (SAT). The \texttt{*\_buggy} targets are intentional
+  mutants, so a counterexample is the \emph{desired} outcome (non-vacuity check).}
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -180,7 +201,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
     \toprule
     \textbf{Aspect} & \textbf{ESBMC (BMC)} & \textbf{Lean (ITP) + LLM agent} \\
     \midrule
-    Embedding effort & program \textbf{is} the spec (write both, assert $\equiv$) & embed tensor {+} FP semantics, \textbf{state} the theorem \\
+    Embedding effort & program acts as spec under the OM (write both, assert $\equiv$) & embed tensor {+} FP semantics, \textbf{state} the theorem \\
     Automation & push-button: auto VC-gen {+} SMT & interactive; agent drives tactic search, proofs need guidance \\
     FP semantics & \textbf{bit-precise IEEE-754} native & modelled/axiomatised; bit-level reasoning heavy \\
     Counterexamples & \textbf{concrete falsifying input} (SAT) & none by default \\
@@ -202,7 +223,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
   \end{itemize}
   \begin{block}{}
     For ``is this fusion correct for the shapes we deploy?'', push-button BMC with bit-precise FP
-    and counterexamples is hard to beat.
+    and counterexamples is highly effective in practice.
   \end{block}
 \end{frame}
 
@@ -215,6 +236,9 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
     \item $\rightarrow$ A like-for-like \textbf{Lean {+} agent} encoding of the same equivalence, to
       quantify the encoding/proof effort empirically.
   \end{itemize}
+  \medskip
+  {\footnotesize Scalability is bounded by \textbf{SMT solving over floating-point arithmetic} and
+  \textbf{loop unwinding} --- cost grows rapidly with tensor size and FP-operation count.}
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -228,8 +252,13 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
   equivalence check for PyTorch rewrites --- at the cost of being \textbf{bounded}.
 
   \bigskip
-  The encoding cost is low (the program is the spec) once the operational model exists;
-  interactive proof buys generality at a higher encoding/proof cost and \textbf{no counterexamples}.
+  The encoding cost is \textbf{relatively low once the operational model is available} (the program
+  acts as the spec); interactive proof buys generality at a higher encoding/proof cost and
+  \textbf{no counterexamples}.
+
+  \medskip
+  {\footnotesize All results are reproducible via the ESBMC harnesses and the \texttt{torch}
+  operational model (\texttt{make verify}).}
   \vfill
 \end{frame}}
 
