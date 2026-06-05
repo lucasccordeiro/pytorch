@@ -221,6 +221,19 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
   </section>
 
   <section class="slide">
+    <h2>Which tool for <em>this</em> task? (original ≡ optimised PyTorch)</h2>
+    <p><strong>Recommendation: ESBMC (BMC), default <code>--floatbv</code>.</strong> It matches the task:</p>
+    <ul>
+      <li><span class="ok">✅</span> <b>Checks the real code</b> — the program <em>is</em> the spec; no re-encoding of semantics.</li>
+      <li><span class="ok">✅</span> <b>Bit-precise IEEE-754</b> — exactly where fusion breaks (reassociation, rounding); reals would answer the <em>wrong</em> question.</li>
+      <li><span class="ok">✅</span> <b>Counterexamples</b> — a concrete failing tensor when the rewrite is wrong (Lean gives none).</li>
+      <li><span class="ok">✅</span> <b>Push-button / CI-able</b> — gate optimisations automatically.</li>
+    </ul>
+    <p><b>Choose Lean (ITP)</b> only for the <em>different</em> goal of a <b>size-general, all-shapes theorem over reals</b> — at higher encoding/proof cost, no FP, no counterexamples.</p>
+    <blockquote>Caveats: ESBMC is <b>bounded</b> (verify the shapes you ship) and <b>OM-dependent</b>.</blockquote>
+  </section>
+
+  <section class="slide">
     <h2>Status · what’s next</h2>
     <ul>
       <li><span class="ok">✅</span> QKV fully verified (exact + tolerance, 2 encodings); bias-fused linear added.</li>

@@ -216,6 +216,21 @@ Different *hard problem*: Alive2's is UB/poison refinement; ours is floating-poi
 
 ---
 
+## Which tool for *this* task? (original ≡ optimised PyTorch)
+
+**Recommendation: ESBMC (BMC), default `--floatbv`.** It matches the task:
+
+- ✅ **Checks the real code** — the program *is* the spec; no re-encoding of semantics.
+- ✅ **Bit-precise IEEE-754** — exactly where fusion breaks (reassociation, rounding); reals would answer the *wrong* question.
+- ✅ **Counterexamples** — a concrete failing tensor when the rewrite is wrong (Lean gives none).
+- ✅ **Push-button / CI-able** — gate optimisations automatically.
+
+**Choose Lean (ITP)** only for the *different* goal of a **size-general, all-shapes theorem over reals** — at higher encoding/proof cost, no FP, no counterexamples.
+
+> Caveats: ESBMC is **bounded** (verify the shapes you ship) and **OM-dependent**.
+
+---
+
 ## Status · what's next
 
 - ✅ QKV fully verified (exact + tolerance, 2 encodings); bias-fused linear added.
