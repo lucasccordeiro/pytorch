@@ -24,8 +24,10 @@ the whole suite. The scalar targets require neither.
 | `qkv_equivalence_buggy` | 8 | FAILED | FAILED | 242 s |
 | `qkv_equivalence_torch` | 4 | SUCCESSFUL | SUCCESSFUL | 110 s |
 | `qkv_equivalence_torch_buggy` | 4 | FAILED | FAILED | 274 s |
+| `bias_linear` | 4 | SUCCESSFUL | SUCCESSFUL | 113 s |
+| `bias_linear_buggy` | 4 | FAILED | FAILED | 31 s |
 
-**4/4 targets behave as expected.** Each clean target verifies; each mutant is
+**6/6 targets behave as expected.** Each clean target verifies; each mutant is
 refuted with a concrete counterexample (the `_buggy` runs report a violated
 equivalence assertion, e.g. `qkv_equivalence_torch_buggy` violates
 `assert torch.allclose(Va, Vb)`), so the suite cannot pass vacuously.
@@ -37,10 +39,12 @@ equivalence assertion, e.g. `qkv_equivalence_torch_buggy` violates
   corresponding unfused projection, so the two are bit-for-bit equal. The
   scalar encoding additionally demonstrates the tolerance form
   (`math.fabs(a-c) <= atol + rtol*|c|`).
-- **Why the mutants are slow.** Refuting an FP equivalence means the solver
-  searches the floating-point input space for a distinguishing assignment;
-  this is markedly slower than confirming UNSAT for the clean proof (242 s vs
-  11 s for the scalar pair).
+- **Mutant timing varies.** Refuting an FP equivalence means the solver
+  searches the floating-point input space for a distinguishing assignment. When
+  the discrepancy is structural and easy to witness this is fast
+  (`bias_linear_buggy`, 31 s — any non-zero `b` distinguishes), but a
+  tolerance-guarded scalar mismatch can be much slower than the clean proof
+  (`qkv_equivalence_buggy`, 242 s vs 11 s).
 - **Why the dims are small.** The torch targets stay at S=1, D=2, H=1: four
   `torch.mm` calls over the operational model already cost ~100 s, and
   nested-list construction/deep access is the dominant cost

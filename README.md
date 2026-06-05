@@ -5,7 +5,7 @@ frontend to **formal equivalence of two PyTorch programs** — proving that a
 fused and an unfused implementation of the same computation produce identical
 results for *all* admissible inputs, not just one random sample.
 
-Driving example (from Eduardo Valentin): the **QKV projection** in attention.
+Driving example: the **QKV projection** in attention.
 
 ```python
 # A (unfused)              # B (fused)
@@ -20,21 +20,22 @@ Here every input is a **bounded nondeterministic float**, so a
 
 ## Status
 
-**4 verification targets**, two clean / `_buggy` pairs, two encodings of the
-same QKV equivalence:
+**6 verification targets**, three clean / `_buggy` pairs:
 
-| Target | Encoding | Verdict |
+| Target | Property | Verdict |
 | --- | --- | --- |
-| `qkv_equivalence` | scalar-unrolled (no torch OM) | SUCCESSFUL |
+| `qkv_equivalence` | QKV fused vs. unfused, scalar-unrolled (no torch OM) | SUCCESSFUL |
 | `qkv_equivalence_buggy` | scalar, K reads V's columns | FAILED |
-| `qkv_equivalence_torch` | **torch-native** (`torch.mm` + `torch.allclose`) | SUCCESSFUL |
+| `qkv_equivalence_torch` | QKV fused vs. unfused, **torch-native** (`torch.mm` + `torch.allclose`) | SUCCESSFUL |
 | `qkv_equivalence_torch_buggy` | torch, split swaps K/V | FAILED |
+| `bias_linear` | `X@W + b` vs. augmented `[X\|1] @ [W;b]`, torch-native | SUCCESSFUL |
+| `bias_linear_buggy` | fused unit column zeroed, bias dropped | FAILED |
 
-Each clean target proves the fused/unfused outputs **FP-exactly** equal (the
-fused column is the identical multiply–add sequence as the unfused projection,
-so equality is exact, stronger than `torch.allclose`'s tolerance). Each mutant
-is refuted with a counterexample — so the suite cannot pass vacuously. Full
-results and timings in [`REPORT.md`](./REPORT.md).
+Each clean target proves the two programs **FP-exactly** equal (the fused
+computation is the identical multiply–add sequence as the unfused one, so
+equality is exact, stronger than `torch.allclose`'s tolerance). Each mutant is
+refuted with a counterexample — so the suite cannot pass vacuously. Full results
+and timings in [`REPORT.md`](./REPORT.md).
 
 The torch-native targets are the headline: they exercise the **torch
 operational model** merged into ESBMC ([esbmc#5120](https://github.com/esbmc/esbmc/pull/5120))

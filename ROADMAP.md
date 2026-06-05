@@ -5,8 +5,9 @@ extensions, roughly in order of dependency.
 
 ## Tier 1 — broaden the equivalence catalogue (scalar + torch-native)
 
-- **Bias-fused linear**: `X @ W + b` vs a fused affine — exercises elementwise
-  add over the torch OM.
+- **Bias-fused linear** ✓ done (`bias_linear`): `X @ W + b` vs the augmented
+  matmul `[X | 1] @ [W ; b]` — exercises an elementwise bias add over a
+  `torch.mm` result (the now-fixed esbmc#5129 FP-arithmetic path).
 - **Multi-head split**: reshape/split of QKV into H heads, fused vs per-head.
 - **Larger dims**: scale S/D/H once nested-list construction/access perf
   (esbmc#5121) improves; today the torch targets stay at S=1, D=2, H=1 to keep
