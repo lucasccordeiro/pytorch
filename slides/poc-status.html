@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proving PyTorch optimizations correct with ESBMC</title>
+<style>
+  :root{
+    --bg:#fbfbfd; --ink:#1d1d1f; --blue:#0b5cad; --red:#b3261e;
+    --muted:#8a8a8e; --panel:#eef2f7; --line:#d9e1ec;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);overflow:hidden;
+  }
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:6vh 9vw;animation:fade .35s ease;
+  }
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  h1{color:var(--blue);font-size:clamp(28px,5vw,52px);line-height:1.1;margin-bottom:.4em}
+  h2{color:var(--blue);font-size:clamp(24px,3.4vw,38px);margin-bottom:.6em}
+  h3{font-size:clamp(18px,2.2vw,26px);font-weight:600;color:#333;margin-bottom:.5em}
+  p{font-size:clamp(17px,2.1vw,26px);line-height:1.5;margin:.35em 0;max-width:30ch}
+  ul{margin:.4em 0 .4em 1.1em}
+  li{font-size:clamp(16px,2vw,25px);line-height:1.5;margin:.4em 0;max-width:42ch}
+  strong{color:var(--red)}
+  .lead{text-align:center;align-items:center}
+  .lead p{max-width:none}
+  .sub{color:#444;font-weight:600}
+  .muted{color:var(--muted)}
+  pre{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:.8em 1em;font-size:clamp(15px,1.9vw,22px);margin:.6em 0;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;
+  }
+  blockquote{
+    border-left:4px solid var(--blue);background:#eef4fb;border-radius:0 8px 8px 0;
+    padding:.6em 1em;margin:.7em 0;font-size:clamp(17px,2.1vw,26px);max-width:40ch;
+  }
+  table{border-collapse:collapse;margin:.6em 0;font-size:clamp(15px,1.9vw,23px)}
+  th,td{border:1px solid var(--line);padding:.5em .9em;text-align:left}
+  th{background:var(--panel);color:var(--blue)}
+  .big-emoji{font-size:clamp(28px,4vw,44px)}
+  .ok{color:#1a7f37}.bad{color:#b3261e}
+  footer{position:fixed;bottom:14px;left:0;right:0;display:flex;justify-content:space-between;
+    padding:0 24px;color:var(--muted);font-size:14px;pointer-events:none}
+  .hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:13px}
+  .counter{font-variant-numeric:tabular-nums}
+  .nav{position:fixed;top:0;bottom:0;width:18vw;cursor:pointer;z-index:5}
+  .nav.left{left:0}.nav.right{right:0}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <section class="slide lead">
+    <h1>Proving PyTorch optimizations are correct&nbsp;— automatically</h1>
+    <h3 class="sub">Formal equivalence checking of two PyTorch programs with ESBMC</h3>
+    <p class="muted">A proof-of-concept · status update</p>
+  </section>
+
+  <section class="slide">
+    <h2>The problem, in one sentence</h2>
+    <p>We constantly <strong>rewrite</strong> deep-learning code to make it run faster.</p>
+    <p>But how do we <em>know</em> the faster version computes the <strong>same thing</strong>?</p>
+    <ul>
+      <li>A rewrite that is <em>almost</em> identical can silently change the results.</li>
+      <li>Silently wrong math → wrong predictions, bugs that are very hard to find.</li>
+    </ul>
+    <blockquote>We want a way to be <strong>sure</strong>, not hopeful.</blockquote>
+  </section>
+
+  <section class="slide">
+    <h2>Our example: the “QKV” step inside every Transformer</h2>
+    <p style="max-width:46ch">Attention models — the engine behind modern AI — build three things,
+      <strong>Q</strong>, <strong>K</strong>, <strong>V</strong>, from the input <code>X</code> using three weight matrices.</p>
+    <p style="max-width:48ch"><b>The clear way</b> (unfused) — three separate matrix multiplications:</p>
+    <pre>Q = X · Wq      K = X · Wk      V = X · Wv</pre>
+    <p style="max-width:48ch"><b>The fast way</b> (fused) — glue the weights together, do <b>one</b> big multiply, then split:</p>
+    <pre>W = [ Wq | Wk | Wv ]      QKV = X · W      → split into Q, K, V</pre>
+    <p>These <b>should</b> give identical results. The question: do they — <strong>always</strong>?</p>
+  </section>
+
+  <section class="slide">
+    <h2>How we check today: we test</h2>
+    <p>We run the program on a <strong>handful of example inputs</strong> and compare.</p>
+    <p class="big-emoji">🥄</p>
+    <p><em>It’s like tasting a few spoonfuls of soup and hoping the whole pot is fine.</em></p>
+    <ul>
+      <li>Testing only covers the inputs you happened to try.</li>
+      <li>A bug hiding in some other input is simply <strong>missed</strong>.</li>
+      <li><strong>Passing tests ≠ correct.</strong></li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <h2>What we actually want: a proof for <em>all</em> inputs</h2>
+    <p style="max-width:44ch">Instead of trying a few inputs, check <strong>every possible input at once</strong> — mathematically.</p>
+    <p>Two possible outcomes:</p>
+    <ul>
+      <li><span class="ok">✅ <b>PROVEN equal</b></span> — guaranteed identical for <em>every</em> input.</li>
+      <li><span class="bad">❌ <b>Counterexample</b></span> — one specific input where they differ, handed straight to you.</li>
+    </ul>
+    <p>Either way, you learn something certain.</p>
+  </section>
+
+  <section class="slide">
+    <h2>The tool: ESBMC</h2>
+    <p><strong>ESBMC</strong> is an automated <em>model checker</em>.</p>
+    <ul>
+      <li>It <b>reads the program</b> and turns the question <em>“are these two always equal?”</em> into one giant logic puzzle.</li>
+      <li>An automated <b>solver</b> then either finds an input that breaks it, or proves that <b>no such input exists</b>.</li>
+    </ul>
+    <blockquote>You don’t write any proofs by hand — it is <strong>push-button</strong>.</blockquote>
+  </section>
+
+  <section class="slide">
+    <h2>The trick that turns a test into a proof</h2>
+    <table>
+      <tr><th>Ordinary test</th><th>Our verification</th></tr>
+      <tr><td>one <b>random</b> tensor <code>torch.randn(…)</code></td><td>a <b>symbolic</b> tensor = <em>any</em> numbers</td></tr>
+      <tr><td>checks that one case</td><td>checks the <b>whole range at once</b></td></tr>
+      <tr><td>“looks fine”</td><td>a <b>guarantee</b></td></tr>
+    </table>
+    <p style="max-width:48ch">We assert <code>unfused result == fused result</code>, feed it <em>any</em> input, and let ESBMC settle it.</p>
+    <p class="muted">(We keep the numbers in a sane range to rule out oddities like “not-a-number”.)</p>
+  </section>
+
+  <section class="slide">
+    <h2>Result: the example is PROVEN correct</h2>
+    <ul>
+      <li><span class="ok">✅</span> Proven equal for <strong>all</strong> inputs — and <strong>bit-for-bit exact</strong>, not merely “close”.</li>
+      <li><span class="ok">✅</span> Done <b>two ways</b>: a plain-math encoding <b>and</b> the <em>real</em> <code>torch.mm</code> + <code>torch.allclose</code>.</li>
+      <li><span class="ok">✅</span> When we <b>deliberately break it</b> (swap two columns), ESBMC <strong>catches it</strong> and shows the exact failing input.</li>
+    </ul>
+    <blockquote>Whole test suite: <strong>6 / 6</strong> targets behave exactly as expected.</blockquote>
+  </section>
+
+  <section class="slide">
+    <h2>Why formal verification matters here</h2>
+    <ul>
+      <li><b>All inputs</b>, not a few → no hidden corner cases.</li>
+      <li><b>Exact</b> → catches tiny numerical drift that testing would wave through.</li>
+      <li><b>Automatic</b> → no hand-written proofs, no PhD required to run it.</li>
+      <li><b>Actionable failures</b> → it gives you the precise input that breaks things.</li>
+    </ul>
+    <blockquote>For machine learning: you can finally <strong>trust</strong> your fused kernels, rewrites, and compiler optimizations.</blockquote>
+  </section>
+
+  <section class="slide">
+    <h2>A bonus: we made the tool itself stronger</h2>
+    <p style="max-width:48ch">Real PyTorch-style code pushed ESBMC into territory it could not yet handle. So along the way we <strong>found and fixed</strong> the gaps:</p>
+    <ul>
+      <li><b>4 contributions merged</b> into ESBMC upstream — including a new built-in model for <code>torch</code> operations and several bug fixes.</li>
+    </ul>
+    <p>Now <em>other people</em> can verify PyTorch-style code too — not just us.</p>
+  </section>
+
+  <section class="slide">
+    <h2>Where we are · what’s next</h2>
+    <ul>
+      <li><span class="ok">✅</span> Motivating <b>QKV</b> example <strong>fully supported</strong> (two encodings, exact proof).</li>
+      <li><span class="ok">✅</span> Extended to a <b>second</b> case: bias-fused linear (<code>X·W + b</code>).</li>
+      <li>⏭️ <b>Bigger matrices</b> and fully native fuse/split — gated on <b>one</b> performance improvement upstream.</li>
+    </ul>
+  </section>
+
+  <section class="slide lead">
+    <h2>Takeaway</h2>
+    <p style="max-width:42ch">We can now <strong>prove</strong> — automatically, for <strong>every</strong> input — that a fast PyTorch rewrite computes <strong>exactly</strong> the same result as the original.</p>
+    <blockquote style="max-width:36ch"><em>Testing can only sample. This is a guarantee.</em></blockquote>
+  </section>
+
+</div>
+
+<div class="nav left"  onclick="go(-1)" title="Previous"></div>
+<div class="nav right" onclick="go(1)"  title="Next"></div>
+<footer><span>PyTorch · ESBMC equivalence PoC</span><span class="counter" id="counter"></span></footer>
+<div class="hint">← → or space to navigate · F for fullscreen</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    document.getElementById('counter').textContent=(i+1)+' / '+slides.length;
+    location.hash=i+1;
+  }
+  function go(d){show(i+d)}
+  addEventListener('keydown',e=>{
+    if(['ArrowRight',' ','PageDown'].includes(e.key)){go(1);e.preventDefault();}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){go(-1);e.preventDefault();}
+    else if(e.key==='Home'){show(0);}
+    else if(e.key==='End'){show(slides.length-1);}
+    else if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+  });
+  show(parseInt(location.hash.slice(1))-1||0);
+</script>
+</body>
+</html>
