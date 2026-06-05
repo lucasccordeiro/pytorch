@@ -1,0 +1,262 @@
+% Beamer version of the PoC status deck (non-expert audience).
+% Compile:  pdflatex poc-status-beamer.tex   (run twice for the outline/refs)
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usetheme{Madrid}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{pifont}
+
+\definecolor{accent}{HTML}{0B5CAD}
+\definecolor{warn}{HTML}{B3261E}
+\definecolor{ok}{HTML}{1A7F37}
+\definecolor{panel}{HTML}{EEF2F7}
+
+\setbeamercolor{structure}{fg=accent}
+\setbeamercolor{frametitle}{bg=accent,fg=white}
+\setbeamercolor{title}{fg=accent}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize items}[circle]
+\setbeamerfont{frametitle}{size=\large}
+
+\newcommand{\good}{\textcolor{ok}{\ding{51}}}
+\newcommand{\bad}{\textcolor{warn}{\ding{55}}}
+
+\title[PyTorch $\equiv$ checking with ESBMC]{Proving PyTorch optimizations are correct --- automatically}
+\subtitle{Formal equivalence checking of two PyTorch programs with ESBMC}
+\date{Proof-of-concept $\cdot$ status update}
+\author{}
+
+\begin{document}
+
+{\setbeamertemplate{footline}{}
+\begin{frame}[plain]
+  \titlepage
+\end{frame}}
+
+% ---------------------------------------------------------------
+\begin{frame}{The problem, in one sentence}
+  We constantly \textbf{rewrite} deep-learning code to make it run faster.
+
+  \bigskip
+  But how do we \emph{know} the faster version computes the
+  \textcolor{warn}{\textbf{same thing}} as the original?
+
+  \bigskip
+  \begin{itemize}
+    \item A rewrite that is \emph{almost} identical can silently change the results.
+    \item Silently wrong math $\rightarrow$ wrong predictions, bugs that are very hard to find.
+  \end{itemize}
+
+  \bigskip
+  \begin{block}{}
+    \centering We want a way to be \textbf{sure}, not hopeful.
+  \end{block}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Our example: the ``QKV'' step inside every Transformer}
+  Attention models --- the engine behind modern AI --- build three things,
+  \textbf{Q}, \textbf{K}, \textbf{V}, from the input $X$ using three weight matrices.
+
+  \bigskip
+  \textbf{The clear way} (unfused) --- three separate matrix multiplications:
+  \[ Q = X\,W_q \qquad K = X\,W_k \qquad V = X\,W_v \]
+
+  \textbf{The fast way} (fused) --- glue the weights together, do \textbf{one} big
+  multiply, then split:
+  \[ W = [\,W_q \mid W_k \mid W_v\,] \qquad \mathit{QKV} = X\,W \qquad \rightarrow\ \text{split into } Q,K,V \]
+
+  \bigskip
+  These \textbf{should} give identical results. The question: do they --- \textcolor{warn}{\emph{always}}?
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{The two programs, side by side}
+  \centering
+  \begin{tikzpicture}[
+      font=\small,
+      box/.style={rounded corners=3pt,draw=accent,fill=panel,minimum height=7mm,minimum width=9mm,inner sep=3pt},
+      res/.style={rounded corners=3pt,draw=ok,fill=ok!8,minimum height=7mm,minimum width=8mm},
+      op/.style={midway,above,font=\scriptsize\itshape,text=accent},
+      arr/.style={-{Stealth[length=2mm]},thick,accent}]
+
+    % ---- Unfused (top) ----
+    \node[box] (xu) {$X$};
+    \node[res,right=22mm of xu] (Q) {$Q$};
+    \node[res,below=4mm of Q] (K) {$K$};
+    \node[res,above=4mm of Q] (V) {$V$};
+    \draw[arr] (xu) -- (V) node[op]{$\times W_v$};
+    \draw[arr] (xu) -- (Q) node[op]{$\times W_q$};
+    \draw[arr] (xu) -- (K) node[op]{$\times W_k$};
+    \node[above=1mm of V,text=accent,font=\footnotesize\bfseries] {Unfused: three matmuls};
+
+    % ---- Fused (bottom) ----
+    \node[box,below=18mm of xu] (xf) {$X$};
+    \node[box,right=16mm of xf] (W) {$W{=}[W_q|W_k|W_v]$};
+    \node[box,right=14mm of W] (QKV) {$\mathit{QKV}$};
+    \node[res,right=16mm of QKV] (Qf) {$Q$};
+    \node[res,below=4mm of Qf] (Kf) {$K$};
+    \node[res,above=4mm of Qf] (Vf) {$V$};
+    \draw[arr] (xf) -- (W) node[op]{concat};
+    \draw[arr] (W) -- (QKV) node[op]{$X\times W$};
+    \draw[arr] (QKV) -- (Vf) node[op,font=\tiny\itshape]{};
+    \draw[arr] (QKV) -- (Qf) node[op]{split};
+    \draw[arr] (QKV) -- (Kf) node[op,font=\tiny\itshape]{};
+    \node[below=1mm of Kf,text=accent,font=\footnotesize\bfseries] {Fused: one matmul {+} split};
+
+    % ---- equivalence brace ----
+    \node[draw=ok,rounded corners,fill=ok!8,text=ok,font=\footnotesize\bfseries,
+          right=8mm of Q,yshift=-13mm,align=center] (eq)
+      {$\equiv$ \\ proven\\ equal};
+  \end{tikzpicture}
+
+  \medskip
+  {\small ESBMC proves these two produce \textbf{the same result for every input}.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{How we check today: we test}
+  We run the program on a \textbf{handful of example inputs} and compare.
+
+  \bigskip
+  \centering{\Large \emph{Like tasting a few spoonfuls of soup and hoping the whole pot is fine.}}
+
+  \bigskip
+  \begin{itemize}
+    \item Testing only covers the inputs you happened to try.
+    \item A bug hiding in some other input is simply \textbf{missed}.
+    \item \textcolor{warn}{\textbf{Passing tests $\neq$ correct.}}
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{What we actually want: a proof for \emph{all} inputs}
+  Instead of trying a few inputs, check \textbf{every possible input at once} --- mathematically.
+
+  \bigskip
+  Two possible outcomes:
+  \begin{itemize}
+    \item \good\ \textbf{PROVEN equal} --- guaranteed identical for \emph{every} input.
+    \item \bad\ \textbf{Counterexample} --- one specific input where they differ, handed straight to you.
+  \end{itemize}
+
+  \bigskip
+  Either way, you learn something \textbf{certain}.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{The tool: ESBMC}
+  \textbf{ESBMC} is an automated \emph{model checker}.
+
+  \bigskip
+  \begin{enumerate}
+    \item It \textbf{reads the program} and turns the question \emph{``are these two always
+      equal?''} into one giant logic puzzle.
+    \item An automated \textbf{solver} then either finds an input that breaks it, or proves
+      that \textbf{no such input exists}.
+  \end{enumerate}
+
+  \bigskip
+  \begin{block}{}
+    \centering You write \emph{no} proofs by hand --- it is \textbf{push-button}.
+  \end{block}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{The trick that turns a test into a proof}
+  \centering
+  \begin{tabular}{@{}p{0.42\textwidth} p{0.42\textwidth}@{}}
+    \toprule
+    \textbf{Ordinary test} & \textbf{Our verification} \\
+    \midrule
+    one \textbf{random} tensor \texttt{torch.randn(\dots)} & a \textbf{symbolic} tensor = \emph{any} numbers \\[4pt]
+    checks that one case & checks the \textbf{whole range at once} \\[4pt]
+    ``looks fine'' & a \textbf{guarantee} \\
+    \bottomrule
+  \end{tabular}
+
+  \bigskip
+  We assert \texttt{unfused == fused}, feed it \emph{any} input, and let ESBMC settle it.
+
+  \medskip
+  {\footnotesize (We keep the numbers in a sane range to rule out oddities like ``not-a-number''.)}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Result: the example is PROVEN correct}
+  \begin{itemize}
+    \item \good\ Proven equal for \textbf{all} inputs --- and \textbf{bit-for-bit exact}, not
+      merely ``close''.
+    \item \good\ Done \textbf{two ways}: a plain-math encoding \emph{and} the real
+      \texttt{torch.mm} {+} \texttt{torch.allclose}.
+    \item \good\ When we \textbf{deliberately break it} (swap two columns), ESBMC
+      \textbf{catches it} and shows the exact failing input.
+  \end{itemize}
+
+  \bigskip
+  \begin{block}{}
+    \centering Whole test suite: \textbf{\textcolor{ok}{6 / 6}} targets behave exactly as expected.
+  \end{block}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Why formal verification matters here}
+  \begin{itemize}
+    \item \textbf{All inputs}, not a few $\rightarrow$ no hidden corner cases.
+    \item \textbf{Exact} $\rightarrow$ catches tiny numerical drift that testing would wave through.
+    \item \textbf{Automatic} $\rightarrow$ no hand-written proofs, no PhD required to run it.
+    \item \textbf{Actionable failures} $\rightarrow$ it gives you the precise input that breaks things.
+  \end{itemize}
+
+  \bigskip
+  \begin{block}{}
+    For machine learning: you can finally \textbf{trust} your fused kernels, rewrites,
+    and compiler optimizations.
+  \end{block}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{A bonus: we made the tool itself stronger}
+  Real PyTorch-style code pushed ESBMC into territory it could not yet handle.
+  So along the way we \textbf{found and fixed} the gaps:
+
+  \bigskip
+  \begin{itemize}
+    \item \textbf{4 contributions merged} into ESBMC upstream --- including a new built-in
+      model for \texttt{torch} operations and several bug fixes.
+  \end{itemize}
+
+  \bigskip
+  Now \emph{other people} can verify PyTorch-style code too --- not just us.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Where we are $\cdot$ what's next}
+  \begin{itemize}
+    \item \good\ Motivating \textbf{QKV} example \textbf{fully supported} (two encodings, exact proof).
+    \item \good\ Extended to a \textbf{second} case: bias-fused linear ($X\,W + b$).
+    \item $\rightarrow$ \textbf{Bigger matrices} and fully native fuse/split --- gated on \textbf{one}
+      performance improvement upstream.
+  \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------
+{\setbeamertemplate{footline}{}
+\begin{frame}[plain]
+  \centering
+  \vfill
+  {\Large\textcolor{accent}{\textbf{Takeaway}}}
+
+  \bigskip
+  We can now \textbf{prove} --- automatically, for \textbf{every} input ---
+  that a fast PyTorch rewrite computes \textbf{exactly} the same result as the original.
+
+  \bigskip
+  \emph{Testing can only sample. This is a guarantee.}
+  \vfill
+\end{frame}}
+
+\end{document}
