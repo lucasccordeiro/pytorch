@@ -191,6 +191,21 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
   </section>
 
   <section class="slide">
+    <h2>Empirical check: we encoded it in Lean too</h2>
+    <p>Same QKV equivalence in <b>Lean 4</b> (no Mathlib, ~30 LOC; agent = LLM-authored proof).</p>
+    <ul>
+      <li>The order-preserving fusion is a <b>definitional identity</b> ⇒ proved by <code>rfl</code>, <em>first attempt</em>, for <b>all dimensions</b> (one theorem), over <code>Int</code> <b>and</b> <code>Float</code> alike.</li>
+      <li>A <b>reassociating</b> fusion is sound over ℤ/ℝ (<code>omega</code>/<code>ring</code>) but <b>false in Float</b>: Lean cannot prove it and returns <b>no counterexample</b> (only <code>rfl failed</code>); ESBMC synthesises the witness.</li>
+    </ul>
+    <table>
+      <tr><th></th><th>Lean (ITP)</th><th>ESBMC (BMC)</th></tr>
+      <tr><td>Order-preserving QKV</td><td><code>rfl</code>, ∀ dims, ~5 s</td><td>per-shape, bit-FP, ~110 s</td></tr>
+      <tr><td>Reassociating fusion</td><td>unsound for FP, <b>no c.ex.</b></td><td><b>finds FP counterexample</b></td></tr>
+    </table>
+    <p class="muted small">ITP wins generality; BMC wins bit-precise FP + counterexamples — complementary. (Artefact: <code>lean/</code>.)</p>
+  </section>
+
+  <section class="slide">
     <h2>Related work: translation validation (Alive2)</h2>
     <p>The closest relative is <b>Alive2</b> (<code>alive2.llvm.org</code>) — translation validation for <b>LLVM IR</b> compiler optimisations. Same idea (prove-or-counterexample), one layer down.</p>
     <table>
@@ -209,7 +224,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
     <ul>
       <li><span class="ok">✅</span> QKV fully verified (exact + tolerance, 2 encodings); bias-fused linear added.</li>
       <li>⏭️ <b>Scale</b>: larger/symbolic dims via k-induction; native <code>cat</code>/<code>split</code> (currently unwinding-heavy, #5121).</li>
-      <li>⏭️ A like-for-like <b>Lean + agent</b> encoding of the same equivalence, to quantify the encoding/proof effort empirically.</li>
+      <li><span class="ok">✅</span> <b>Lean + agent</b> comparison <em>done</em> (see <code>lean/</code>): order-preserving fusion is <code>rfl</code>/∀-dims; FP reassociation needs BMC.</li>
     </ul>
     <p class="muted small">Scalability is bounded by <b>SMT solving over floating-point arithmetic</b> and <b>loop unwinding</b> — cost grows rapidly with tensor size and FP-operation count.</p>
   </section>

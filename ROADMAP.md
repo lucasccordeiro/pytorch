@@ -29,6 +29,14 @@ extensions, roughly in order of dependency.
 - Overflow/NaN-freedom contracts as a phase-2 (safety) pass in `verify.py`,
   mirroring the AWS-Neuron / vLLM two-phase driver.
 
+## Tier 3b — cross-tool comparison (done)
+
+- ✅ **Lean (ITP) comparison** (`lean/`): the same QKV equivalence proved in Lean 4
+  by `rfl`, generalised to all dimensions, over `Int` and `Float` — confirming the
+  deck's BMC-vs-ITP slide empirically. Order-preserving fusion is a definitional
+  identity (ITP wins generality); FP *reassociation* is false in `Float` and yields
+  no Lean counterexample (BMC wins bit-precise FP + witnesses).
+
 ## Tier 4 — automation
 
 - A k-induction completeness check per symbolic target (certify that the chosen

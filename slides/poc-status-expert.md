@@ -179,6 +179,24 @@ Driving real PyTorch-style code through ESBMC required fixing the embedding path
 
 ---
 
+## Empirical check: we encoded it in Lean too
+
+Same QKV equivalence in **Lean 4** (no Mathlib, ~30 LOC; agent = LLM-authored proof).
+
+- The order-preserving fusion is a **definitional identity** ⇒ proved by `rfl`, *first attempt*,
+  for **all dimensions** (one theorem), over `Int` **and** `Float` alike.
+- A **reassociating** fusion is sound over ℤ/ℝ (`omega`/`ring`) but **false in Float**: Lean
+  cannot prove it and returns **no counterexample** (only `rfl failed`); ESBMC synthesises the witness.
+
+| | **Lean (ITP)** | **ESBMC (BMC)** |
+| --- | --- | --- |
+| Order-preserving QKV | `rfl`, ∀ dims, ~5 s | per-shape, bit-FP, ~110 s |
+| Reassociating fusion | unsound for FP, **no c.ex.** | **finds FP counterexample** |
+
+ITP wins generality; BMC wins bit-precise FP + counterexamples — complementary. *(Artefact: `lean/`.)*
+
+---
+
 ## Related work: translation validation (Alive2)
 
 The closest relative is **Alive2** (`alive2.llvm.org`) — translation validation for **LLVM IR**
@@ -202,8 +220,8 @@ Different *hard problem*: Alive2's is UB/poison refinement; ours is floating-poi
 - ✅ QKV fully verified (exact + tolerance, 2 encodings); bias-fused linear added.
 - ⏭️ **Scale**: larger/symbolic dims via k-induction; native `cat`/`split`
   (currently unwinding-heavy — [#5121](https://github.com/esbmc/esbmc/issues/5121)).
-- ⏭️ A like-for-like **Lean + agent** encoding of the same equivalence, to quantify the
-  encoding/proof effort empirically.
+- ✅ **Lean + agent** comparison *done* (see `lean/`): order-preserving fusion is `rfl`/∀-dims;
+  FP reassociation needs BMC.
 
 *Scalability is bounded by **SMT solving over floating-point arithmetic** and **loop unwinding** — cost grows rapidly with tensor size and FP-operation count.*
 
