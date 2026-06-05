@@ -179,6 +179,24 @@ Driving real PyTorch-style code through ESBMC required fixing the embedding path
 
 ---
 
+## Related work: translation validation (Alive2)
+
+The closest relative is **Alive2** (`alive2.llvm.org`) — translation validation for **LLVM IR**
+compiler optimisations. Same idea (prove-or-counterexample), one layer down.
+
+| | **Alive2** | **This work** |
+| --- | --- | --- |
+| Target | LLVM IR optimisations | PyTorch fusions/rewrites |
+| Engine | SMT (Z3), **refinement** | ESBMC → SMT, **equivalence** |
+| Hard semantics | `undef`/`poison`/UB | **bit-precise IEEE-754** FP |
+| Verdict | refines / counterexample | proved / counterexample |
+| Scope | per-function (no inter-proc.) | bounded, fixed shapes |
+
+Different *hard problem*: Alive2's is UB/poison refinement; ours is floating-point
+(reassociation, rounding). Both are bounded/local — the size-general theorem is the ITP (Lean) end.
+
+---
+
 ## Status · what's next
 
 - ✅ QKV fully verified (exact + tolerance, 2 encodings); bias-fused linear added.
