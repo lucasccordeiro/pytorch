@@ -1,6 +1,7 @@
 ---
 marp: true
 title: Proving PyTorch optimizations correct with ESBMC
+author: Lucas Cordeiro
 description: A non-expert-friendly status update on the equivalence-verification PoC
 theme: default
 paginate: true
@@ -24,6 +25,8 @@ style: |
 # Proving PyTorch optimizations are correct — automatically
 
 ### Formal equivalence checking of two PyTorch programs with ESBMC
+
+**Lucas Cordeiro** · University of Manchester
 
 A proof-of-concept · status update
 
