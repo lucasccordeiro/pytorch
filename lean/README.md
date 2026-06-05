@@ -46,6 +46,11 @@ The tools diverge on **reassociating** optimisations:
 > proofs, and still without a model checker's automatic counterexamples. The
 > contrast below is therefore **automation + counterexamples + checking the real
 > code**, not "Lean can't do FP".
+>
+> We actually re-ran the experiment this way: **`floatspec/`** proves the QKV
+> fusion over FloatSpec's real IEEE-754 rounding (`round_to_generic`, ∀ dims, by
+> `rfl`), and **`Bits.lean`** proves a concrete bit fact in *core* Lean via
+> `toBits` + `native_decide`. See [`floatspec/README.md`](./floatspec/README.md).
 
 ## Takeaway
 
