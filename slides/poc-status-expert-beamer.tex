@@ -238,8 +238,9 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
       \texttt{rfl}, \emph{first attempt}, for \textbf{all dimensions} (one theorem), over
       \texttt{Int} \emph{and} \texttt{Float} alike.
     \item A \textbf{reassociating} fusion is sound over $\mathbb{Z}/\mathbb{R}$ (\texttt{omega}/\texttt{ring})
-      but \textbf{false in Float}: Lean cannot prove it and returns \textbf{no counterexample}
-      (only \texttt{rfl failed}); ESBMC synthesises the witness.
+      but \textbf{false in Float}. In \emph{core} Lean (opaque \texttt{Float}) you can't prove it and
+      get \textbf{no counterexample}; a Lean IEEE-754 library (FloatSpec / TorchLean) enables FP
+      reasoning but still no auto-witness --- ESBMC synthesises one.
   \end{itemize}
   \begin{center}\small
   \begin{tabular}{@{}p{0.24\textwidth}p{0.18\textwidth}p{0.2\textwidth}p{0.22\textwidth}@{}}
@@ -277,7 +278,9 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
   \medskip
   {\footnotesize Different \emph{hard problem}: Alive2's is UB/poison refinement; ours is
   floating-point (reassociation, rounding). Both are bounded/local --- the size-general theorem is
-  the ITP (Lean) end of the spectrum.}
+  the ITP (Lean) end of the spectrum. \textbf{ITP side:} \emph{TorchLean}
+  (\texttt{github.com/nktkt/leanx}) formalises NNs in Lean 4 with IEEE-754 binary32 --- Lean
+  \emph{can} do bit-precise FP, with a dedicated library.}
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -285,7 +288,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
   \textbf{Recommendation: ESBMC (BMC), default \texttt{--floatbv}.} It matches the task:
   \begin{itemize}
     \item \good\ \textbf{Checks the real code} --- the program \emph{is} the spec; no re-encoding of semantics.
-    \item \good\ \textbf{Bit-precise IEEE-754} --- exactly where fusion breaks (reassociation, rounding); reals would answer the \emph{wrong} question.
+    \item \good\ \textbf{Bit-precise IEEE-754, built in} --- exactly where fusion breaks (reassociation, rounding); plain reals answer the \emph{wrong} question, and a Lean IEEE-754 library needs manual proofs {+} gives no counterexamples.
     \item \good\ \textbf{Counterexamples} --- a concrete failing tensor when the rewrite is wrong (Lean gives none).
     \item \good\ \textbf{Push-button / CI-able} --- gate optimisations automatically.
   \end{itemize}

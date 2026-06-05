@@ -195,7 +195,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
     <p>Same QKV equivalence in <b>Lean 4</b> (no Mathlib, ~30 LOC; agent = LLM-authored proof).</p>
     <ul>
       <li>The order-preserving fusion is a <b>definitional identity</b> ⇒ proved by <code>rfl</code>, <em>first attempt</em>, for <b>all dimensions</b> (one theorem), over <code>Int</code> <b>and</b> <code>Float</code> alike.</li>
-      <li>A <b>reassociating</b> fusion is sound over ℤ/ℝ (<code>omega</code>/<code>ring</code>) but <b>false in Float</b>: Lean cannot prove it and returns <b>no counterexample</b> (only <code>rfl failed</code>); ESBMC synthesises the witness.</li>
+      <li>A <b>reassociating</b> fusion is sound over ℤ/ℝ (<code>omega</code>/<code>ring</code>) but <b>false in Float</b>. In <em>core</em> Lean (opaque <code>Float</code>) you can't prove it and get <b>no counterexample</b>; a Lean IEEE-754 library (FloatSpec / TorchLean) enables FP reasoning but still no auto-witness — ESBMC synthesises one.</li>
     </ul>
     <table>
       <tr><th></th><th>Lean</th><th>ESBMC <code>--ir</code></th><th>ESBMC <code>--floatbv</code></th></tr>
@@ -218,6 +218,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
       <tr><td>Scope</td><td>per-function (no inter-proc.)</td><td>bounded, fixed shapes</td></tr>
     </table>
     <p class="muted small">Different <em>hard problem</em>: Alive2's is UB/poison refinement; ours is floating-point (reassociation, rounding). Both are bounded/local — the size-general theorem is the ITP (Lean) end.</p>
+    <p class="muted small"><b>ITP side:</b> <em>TorchLean</em> (<code>github.com/nktkt/leanx</code>) formalises neural networks in Lean 4 with <b>IEEE-754 binary32</b> semantics (robustness verification) — Lean <em>can</em> do bit-precise FP, with a dedicated library.</p>
   </section>
 
   <section class="slide">
@@ -225,7 +226,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
     <p><strong>Recommendation: ESBMC (BMC), default <code>--floatbv</code>.</strong> It matches the task:</p>
     <ul>
       <li><span class="ok">✅</span> <b>Checks the real code</b> — the program <em>is</em> the spec; no re-encoding of semantics.</li>
-      <li><span class="ok">✅</span> <b>Bit-precise IEEE-754</b> — exactly where fusion breaks (reassociation, rounding); reals would answer the <em>wrong</em> question.</li>
+      <li><span class="ok">✅</span> <b>Bit-precise IEEE-754, built in</b> — exactly where fusion breaks (reassociation, rounding); plain reals answer the <em>wrong</em> question, and a Lean IEEE-754 library needs manual proofs + gives no counterexamples.</li>
       <li><span class="ok">✅</span> <b>Counterexamples</b> — a concrete failing tensor when the rewrite is wrong (Lean gives none).</li>
       <li><span class="ok">✅</span> <b>Push-button / CI-able</b> — gate optimisations automatically.</li>
     </ul>
