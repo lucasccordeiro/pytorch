@@ -267,7 +267,7 @@
     <p><b>What we model / bound</b></p>
     <ul>
       <li><b>Fixed tensor sizes</b> (bounded model checking; concrete, e.g. <code>S=1, D=2, H=1</code>).</li>
-      <li><b>Inputs bounded</b> to a finite range, which excludes <code>NaN</code>/<code>Inf</code>.</li>
+      <li><b>Inputs bounded</b> to a finite range, which excludes <code>NaN</code>/<code>Inf</code> — so equivalence is proven over finite, well-defined FP domains.</li>
     </ul>
     <p><b>What we do <em>not</em> claim:</b> arbitrary/symbolic sizes · performance equivalence · behaviour outside the bounds · backend-specific optimisations (FMA, parallel reductions, cuBLAS) — we model a sequential reference.</p>
   </section>

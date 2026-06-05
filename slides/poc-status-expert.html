@@ -65,10 +65,10 @@
     <p class="eq">∀ X, W ∈ range.&nbsp;&nbsp; P<sub>unfused</sub>(X,W) ≡ P<sub>fused</sub>(X,W)</p>
     <ul>
       <li><b>Testing</b> under-approximates: it samples a finite input set.</li>
-      <li>We want <b>exhaustive</b> equivalence over an input region, with <b>bit-precise IEEE-754</b> (where fusion breaks: reassociation, rounding, NaN/Inf).</li>
+      <li>We want <b>exhaustive</b> equivalence over an input region, with <b>bit-precise IEEE-754</b> (where fusion breaks: reassociation, rounding).</li>
       <li>Two verdicts: <b>proof</b> (UNSAT) or a <b>concrete counterexample</b> (SAT).</li>
     </ul>
-    <p class="muted small">Checked under a <b>sequential IEEE-754 semantics</b> (the operational model). <b>Not modelled:</b> backend-specific optimisations (FMA, cuBLAS), parallel/tree reductions, non-deterministic scheduling.</p>
+    <p class="muted small">Checked under a <b>sequential IEEE-754 semantics</b>; inputs are bounded, so <b>NaN/Inf are excluded</b> — equivalence is proven over finite FP domains. <b>Not modelled:</b> backend optimisations (FMA, cuBLAS), parallel/tree reductions, non-deterministic scheduling.</p>
   </section>
 
   <section class="slide">
@@ -114,7 +114,8 @@
     <p>The program <strong>acts as the specification</strong> under the assumed operational model (correctness depends on the OM's faithfulness) — no separate spec to maintain.</p>
     <ul>
       <li><b>Tensors</b> → nested lists; <b>ops</b> → operational model <code>torch.py</code> (<code>mm/matmul/cat/split/allclose</code>), pure-Python, float-typed, FLAIL-baked.</li>
-      <li><b>Inputs</b> → symbolic <code>nondet_float()</code> with <code>__ESBMC_assume</code> bounds (excludes NaN/Inf).</li>
+      <li><b>Inputs</b> → symbolic <code>nondet_float()</code> with <code>__ESBMC_assume</code> bounds (excludes NaN/Inf ⇒ finite FP domain).</li>
+      <li><b>Shapes</b> → dimensions are <b>fixed and well-typed</b>; shape compatibility is assumed.</li>
       <li><b>Property</b> → exact (<code>==</code> / <code>allclose(rtol=0, atol=0)</code>) or tolerance (<code>allclose</code> defaults).</li>
       <li><b>Two encodings</b>: scalar-unrolled (no OM) <b>and</b> torch-native.</li>
     </ul>
@@ -136,7 +137,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
       <li><b>Bit-precise IEEE-754</b> FP theory (Bitwuzla / Z3); rounding modelled, not abstracted.</li>
       <li><b>UNSAT ⇒ proved</b> over the region; <b>SAT ⇒ the falsifying assignment</b>.</li>
       <li>TCB: Python frontend + operational model + SMT solver.</li>
-      <li><b>Not modelled</b>: backend-specific optimisations (FMA, parallel/tree reductions, cuBLAS) — we verify the reference operational semantics, not a specific GPU kernel.</li>
+      <li><b>Not modelled</b>: backend-specific optimisations (FMA, parallel/tree reductions, cuBLAS). <b>Intended use: reference-semantics equivalence</b>, not production-kernel equivalence.</li>
     </ul>
   </section>
 
