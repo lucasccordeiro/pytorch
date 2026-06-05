@@ -45,3 +45,34 @@ The tools diverge on **reassociating** optimisations:
   Lean relies on is unsound for IEEE-754.
 
 They are complementary, which is the point of the deck's "when to use which" slide.
+
+## Can ESBMC reach Lean-class proof times? (encoding experiment)
+
+Lean checks the (real-arithmetic) theorem in ~5 s. ESBMC's default is *bit-precise*
+IEEE-754 (`--floatbv` on Bitwuzla). We measured the alternative encodings
+(`--ir` = integer/real arithmetic; `--ir-ieee` = real arithmetic with IEEE
+enclosure constraints; both need an int/real solver, i.e. `--z3`):
+
+| Target | `--floatbv` (Bitwuzla, default) | `--ir --z3` | `--ir-ieee --z3` | `--floatbv --z3` |
+| --- | --- | --- | --- | --- |
+| scalar exact (proof) | 6.1 s | **2.9 s** | **2.9 s** | ≫12 min (killed) |
+| scalar tolerance (proof) | 13.1 s | **5.5 s** | — | — |
+| scalar buggy (refutation) | ~300 s | ≫19 min (killed) | — | — |
+| torch-native exact (proof) | ~122 s | ≫5 min (killed) | ≫5 min (killed) | — |
+
+**Yes — but only for the easy case, and only by becoming Lean.** `--ir`/`--ir-ieee`
+reach ~3 s on the scalar proof (≈ Lean), but they *abstract* floating point
+(`--ir` to reals, `--ir-ieee` to a real enclosure), so that is the
+Lean-equivalent (real-arithmetic) claim, **not** the bit-precise one. And the
+same encodings **diverge** on the cases that motivate BMC — refutation
+(counterexample search) and the operational-model torch path. The solver pairing
+also dominates: Z3 + `--floatbv` is ≫100× slower than Bitwuzla + `--floatbv`.
+
+**Conclusion:** bit-precise `--floatbv` on Bitwuzla (the default) is the robust
+choice across proofs, refutations, and the torch OM; the int/real encodings buy
+Lean-class speed only by giving up exactly what BMC is here for.
+
+> Minor tooling note: `--ir-ieee` without `--z3` aborts on the default Bitwuzla
+> ("Bitwuzla does not support integer encoding mode") instead of auto-selecting a
+> compatible solver or erroring cleanly — worth an upstream UX fix.
+

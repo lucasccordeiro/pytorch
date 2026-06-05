@@ -251,7 +251,9 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
     \bottomrule
   \end{tabular}
   \end{center}
-  {\footnotesize ITP wins generality; BMC wins bit-precise FP {+} counterexamples --- complementary. (Artefact: \texttt{lean/}.)}
+  {\footnotesize ITP wins generality; BMC wins bit-precise FP {+} counterexamples --- complementary.
+  (ESBMC's \texttt{--ir} reaches $\sim$3 s on the scalar proof, $\approx$ Lean, but abstracts FP and
+  diverges on refutation/OM.) Artefact {+} numbers: \texttt{lean/}.}
 \end{frame}
 
 % ---------------------------------------------------------------
