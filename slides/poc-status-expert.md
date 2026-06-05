@@ -185,8 +185,9 @@ Same QKV equivalence in **Lean 4** (no Mathlib, ~30 LOC; agent = LLM-authored pr
 
 - The order-preserving fusion is a **definitional identity** ⇒ proved by `rfl`, *first attempt*,
   for **all dimensions** (one theorem), over `Int` **and** `Float` alike.
-- A **reassociating** fusion is sound over ℤ/ℝ (`omega`/`ring`) but **false in Float**: Lean
-  cannot prove it and returns **no counterexample** (only `rfl failed`); ESBMC synthesises the witness.
+- A **reassociating** fusion is sound over ℤ/ℝ (`omega`/`ring`) but **false in Float**. In *core*
+  Lean (opaque `Float`) you can't prove it and get **no counterexample**; a Lean IEEE-754 library
+  (FloatSpec / TorchLean) enables FP reasoning but still no auto-witness — ESBMC synthesises one.
 
 | | **Lean** | **ESBMC `--ir`** | **ESBMC `--floatbv`** |
 | --- | --- | --- | --- |
@@ -214,6 +215,8 @@ compiler optimisations. Same idea (prove-or-counterexample), one layer down.
 Different *hard problem*: Alive2's is UB/poison refinement; ours is floating-point
 (reassociation, rounding). Both are bounded/local — the size-general theorem is the ITP (Lean) end.
 
+**ITP side:** *TorchLean* (`github.com/nktkt/leanx`) formalises neural networks in Lean 4 with **IEEE-754 binary32** semantics (robustness verification) — Lean *can* do bit-precise FP, with a dedicated library.
+
 ---
 
 ## Which tool for *this* task? (original ≡ optimised PyTorch)
@@ -221,7 +224,7 @@ Different *hard problem*: Alive2's is UB/poison refinement; ours is floating-poi
 **Recommendation: ESBMC (BMC), default `--floatbv`.** It matches the task:
 
 - ✅ **Checks the real code** — the program *is* the spec; no re-encoding of semantics.
-- ✅ **Bit-precise IEEE-754** — exactly where fusion breaks (reassociation, rounding); reals would answer the *wrong* question.
+- ✅ **Bit-precise IEEE-754, built in** — exactly where fusion breaks (reassociation, rounding); plain reals answer the *wrong* question, and a Lean IEEE-754 library needs manual proofs + gives no counterexamples.
 - ✅ **Counterexamples** — a concrete failing tensor when the rewrite is wrong (Lean gives none).
 - ✅ **Push-button / CI-able** — gate optimisations automatically.
 

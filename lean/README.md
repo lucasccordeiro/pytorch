@@ -32,10 +32,20 @@ dimensions, and it holds over `Int`, `ℝ`, and `Float` alike.
 The tools diverge on **reassociating** optimisations:
 
 - Over `Int`/`ℝ`, addition is associative — `add_assoc_int` is proved by `omega`.
-- Over `Float` it is **false**. Lean cannot prove `(a+b)+c = a+(b+c)` for
-  `Float` and returns **no counterexample** — only `rfl failed`. A witness
-  exists (`(0.1+0.2)+0.3 ≠ 0.1+(0.2+0.3)`, see the `#eval`), which a bounded
-  model checker like ESBMC synthesises automatically.
+- Over Lean's **core `Float`** it is **false**, and core `Float` is *opaque*
+  (no semantics in the logic), so Lean cannot prove `(a+b)+c = a+(b+c)` — only
+  `rfl failed` — and returns **no counterexample**. A witness exists
+  (`(0.1+0.2)+0.3 ≠ 0.1+(0.2+0.3)`, see the `#eval`), which a bounded model
+  checker like ESBMC synthesises automatically.
+
+> **Lean *does* support IEEE-754 — via libraries, not core.** Dedicated
+> formalisations give bit-precise FP in Lean: **FloatSpec** (general IEEE-754),
+> **TorchLean** (IEEE-754 binary32 for neural-network verification), **FLoPS**
+> (the P3109 low-precision standard). With one of these you *can* reason about FP
+> rounding in Lean — at the cost of building/adopting the model and writing the
+> proofs, and still without a model checker's automatic counterexamples. The
+> contrast below is therefore **automation + counterexamples + checking the real
+> code**, not "Lean can't do FP".
 
 ## Takeaway
 
