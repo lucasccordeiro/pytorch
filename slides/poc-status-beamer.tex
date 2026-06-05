@@ -16,7 +16,8 @@
 
 \setbeamercolor{structure}{fg=accent}
 \setbeamercolor{frametitle}{bg=accent,fg=white}
-\setbeamercolor{title}{fg=accent}
+\setbeamercolor{title}{bg=accent,fg=white}
+\setbeamercolor{subtitle}{fg=accent}
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{itemize items}[circle]
 \setbeamerfont{frametitle}{size=\large}
@@ -27,13 +28,27 @@
 \title[PyTorch $\equiv$ checking with ESBMC]{Proving PyTorch optimizations are correct --- automatically}
 \subtitle{Formal equivalence checking of two PyTorch programs with ESBMC}
 \date{Proof-of-concept $\cdot$ status update}
-\author{}
+\author{Lucas Cordeiro}
+\institute{University of Manchester}
 
 \begin{document}
 
 {\setbeamertemplate{footline}{}
 \begin{frame}[plain]
-  \titlepage
+  \centering
+  \vfill
+  \begin{beamercolorbox}[sep=14pt,center,rounded=true,shadow=true,wd=0.92\textwidth]{title}
+    \usebeamerfont{title}\inserttitle
+  \end{beamercolorbox}
+  \vskip0.8em
+  {\large\textcolor{accent}{\insertsubtitle}}\par
+  \vskip1.6em
+  {\large\insertauthor}\par
+  \smallskip
+  {\small\insertinstitute}\par
+  \vskip1em
+  {\insertdate}
+  \vfill
 \end{frame}}
 
 % ---------------------------------------------------------------
