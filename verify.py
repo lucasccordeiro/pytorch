@@ -67,6 +67,11 @@ MANIFEST: list[Target] = [
            ("--unwind", "4"), "SUCCESSFUL"),
     Target("qkv_equivalence_torch_buggy", "qkv_equivalence_torch_buggy.py",
            ("--unwind", "4"), "FAILED"),
+    # Bias-fused linear: X@W + b  vs  [X|1] @ [W;b]  (torch.mm + torch.allclose).
+    Target("bias_linear", "bias_linear.py",
+           ("--unwind", "4"), "SUCCESSFUL"),
+    Target("bias_linear_buggy", "bias_linear_buggy.py",
+           ("--unwind", "4"), "FAILED"),
 ]
 
 _VERDICT_RE = re.compile(r"^VERIFICATION (SUCCESSFUL|FAILED)$", re.MULTILINE)
