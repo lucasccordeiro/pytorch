@@ -143,7 +143,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
 
   <section class="slide">
     <h2>Results</h2>
-    <p class="small"><strong>8 / 8</strong> — QKV proved <em>exact</em> and <em>tolerance</em>, in <em>scalar</em> and <em>torch-native</em> encodings; each clean target paired with a refuted mutant (Bitwuzla, fixed dims).</p>
+    <p class="small"><strong>9 / 9</strong> — QKV proved <em>exact</em> and <em>tolerance</em>, in <em>scalar</em> and <em>torch-native</em> encodings; each clean target paired with a refuted mutant; <strong>plus a reassociating fusion refuted with a counterexample</strong> (the bug-finding case). Bitwuzla, fixed dims.</p>
     <table>
       <tr><th>Target</th><th>predicate</th><th>verdict</th><th>time</th></tr>
       <tr><td><code>qkv_equivalence_exact</code></td><td>scalar <code>==</code></td><td class="ok">SUCCESSFUL</td><td>6 s</td></tr>
@@ -152,6 +152,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
       <tr><td><code>qkv_equivalence_torch</code></td><td><code>allclose</code> defaults</td><td class="ok">SUCCESSFUL</td><td>124 s</td></tr>
       <tr><td><code>*_buggy</code> (×3)</td><td>refutation</td><td class="bad">VIOLATED (c.ex.)</td><td>35–338 s</td></tr>
       <tr><td><code>bias_linear</code> (+buggy)</td><td><code>X·W+b ≡ [X|1]·[W;b]</code></td><td>SUCCESSFUL / VIOLATED</td><td>35–135 s</td></tr>
+      <tr><td><code>reassoc_fusion_exact</code></td><td>reassoc <code>==</code> (<b>unsound in FP</b>)</td><td class="bad">VIOLATED (1-ULP c.ex.)</td><td>15 s</td></tr>
     </table>
     <p class="muted small"><b>Legend:</b> ✓ SUCCESSFUL = property holds (UNSAT); ✗ VIOLATED = counterexample found (SAT). The <code>*_buggy</code> targets are intentional mutants, so a counterexample is the <b>desired</b> outcome (non-vacuity check).</p>
   </section>

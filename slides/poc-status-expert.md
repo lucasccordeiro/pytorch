@@ -123,8 +123,9 @@ Python frontend → **GOTO** → symbolic execution → **VCs** → SMT.
 
 ## Results
 
-**8 / 8** — QKV proved *exact* and *tolerance*, in *scalar* and *torch-native* encodings;
-each clean target paired with a refuted mutant. Bitwuzla, fixed dims (S=1,D=2,H=1 torch; 2×2 scalar).
+**9 / 9** — QKV proved *exact* and *tolerance*, in *scalar* and *torch-native* encodings;
+each clean target paired with a refuted mutant; **plus a reassociating fusion refuted with a
+counterexample** (the bug-finding case). Bitwuzla, fixed dims (S=1,D=2,H=1 torch; 2×2 scalar).
 
 | Target | predicate | verdict | time |
 | --- | --- | --- | --- |
@@ -134,6 +135,7 @@ each clean target paired with a refuted mutant. Bitwuzla, fixed dims (S=1,D=2,H=
 | `qkv_equivalence_torch` | `allclose` defaults | SUCCESSFUL | 124 s |
 | `*_buggy` (×3, swap/zero) | refutation | VIOLATED (c.ex.) | 35–338 s |
 | `bias_linear` (+`_buggy`) | `X·W+b` ≡ `[X\|1]·[W;b]` | SUCCESSFUL / VIOLATED | 35–135 s |
+| `reassoc_fusion_exact` | reassoc `==` (**unsound in FP**) | VIOLATED (1-ULP c.ex.) | 15 s |
 
 **Legend:** ✓ SUCCESSFUL = property holds (UNSAT); ✗ VIOLATED = counterexample found (SAT). The `*_buggy` targets are intentional mutants, so a counterexample is the **desired** outcome (non-vacuity check).
 
