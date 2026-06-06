@@ -232,29 +232,30 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
 
 % ---------------------------------------------------------------
 \begin{frame}{Empirical check: we encoded it in Lean too}
-  Same QKV equivalence in \textbf{Lean 4} (no Mathlib, $\sim$30 LOC; agent = LLM-authored proof).
+  Same QKV equivalence in \textbf{Lean 4} (agent = LLM-authored proof):
   \begin{itemize}
     \item The order-preserving fusion is a \textbf{definitional identity} $\Rightarrow$ proved by
-      \texttt{rfl}, \emph{first attempt}, for \textbf{all dimensions} (one theorem), over
-      \texttt{Int} \emph{and} \texttt{Float} alike.
+      \texttt{rfl} for \textbf{all dimensions}, over \texttt{Int} \emph{and} \texttt{Float}.
     \item A \textbf{reassociating} fusion is sound over $\mathbb{Z}/\mathbb{R}$ (\texttt{omega}/\texttt{ring})
-      but \textbf{false in Float}. In \emph{core} Lean (opaque \texttt{Float}) you can't prove it and
-      get \textbf{no counterexample}; a Lean IEEE-754 library (FloatSpec / TorchLean) enables FP
-      reasoning but still no auto-witness --- ESBMC synthesises one.
+      but \textbf{false in Float}; core Lean (opaque \texttt{Float}) can't prove it / gives \textbf{no counterexample}.
+    \item \textbf{Verified with a real FP library:} \emph{FloatSpec} proves the fusion over genuine
+      \textbf{IEEE-754 rounding} ($\forall$ dims, \texttt{rfl}) --- Lean \emph{does} do bit-precise FP ---
+      but FloatSpec is a \textbf{noncomputable} proof model, so still \textbf{no concrete eval /
+      counterexample}; ESBMC synthesises one.
   \end{itemize}
-  \begin{center}\small
+  \vspace{-1mm}
+  \begin{center}\footnotesize
   \begin{tabular}{@{}p{0.24\textwidth}p{0.18\textwidth}p{0.2\textwidth}p{0.22\textwidth}@{}}
     \toprule
      & \textbf{Lean} & \textbf{ESBMC \texttt{--ir}} & \textbf{ESBMC \texttt{--floatbv}} \\
     \midrule
-    Arithmetic & reals (no FP) & reals (abstracted) & \textbf{bit-precise FP} \\
     Order-preserving QKV & \texttt{rfl}, $\forall$ dims, $\sim$5 s & bounded, $\sim$3 s & bounded, 6--110 s \\
     Reassociation / c.ex. & no c.ex. & FP-blind, real c.ex. & \textbf{FP counterexample} \\
     \bottomrule
   \end{tabular}
   \end{center}
   {\footnotesize ITP wins generality; \texttt{--ir} matches Lean's reals \& speed;
-  \textbf{\texttt{--floatbv} wins bit-precise FP {+} counterexamples}. Artefact {+} numbers: \texttt{lean/}.}
+  \textbf{\texttt{--floatbv} wins bit-precise FP {+} counterexamples}. Verified in \texttt{lean/floatspec/}, \texttt{lean/Bits.lean}.}
 \end{frame}
 
 % ---------------------------------------------------------------

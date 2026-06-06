@@ -185,17 +185,18 @@ Same QKV equivalence in **Lean 4** (no Mathlib, ~30 LOC; agent = LLM-authored pr
 
 - The order-preserving fusion is a **definitional identity** ⇒ proved by `rfl`, *first attempt*,
   for **all dimensions** (one theorem), over `Int` **and** `Float` alike.
-- A **reassociating** fusion is sound over ℤ/ℝ (`omega`/`ring`) but **false in Float**. In *core*
-  Lean (opaque `Float`) you can't prove it and get **no counterexample**; a Lean IEEE-754 library
-  (FloatSpec / TorchLean) enables FP reasoning but still no auto-witness — ESBMC synthesises one.
+- A **reassociating** fusion is sound over ℤ/ℝ (`omega`/`ring`) but **false in Float**; core Lean
+  (opaque `Float`) can't prove it and gives **no counterexample**.
+- **Verified with a real FP library:** *FloatSpec* proves the fusion over genuine **IEEE-754
+  rounding** (∀ dims, `rfl`) — Lean *does* do bit-precise FP — but FloatSpec is a **noncomputable**
+  proof model, so still **no concrete eval / counterexample**; ESBMC synthesises one.
 
 | | **Lean** | **ESBMC `--ir`** | **ESBMC `--floatbv`** |
 | --- | --- | --- | --- |
-| Arithmetic | reals (no FP) | reals (FP abstracted) | **bit-precise IEEE-754** |
 | Order-preserving QKV | `rfl`, ∀ dims, ~5 s | bounded, ~3 s | bounded, ~6–110 s |
 | Reassociation / c.ex. | no c.ex. | FP-blind, real c.ex. | **finds FP counterexample** |
 
-ITP wins generality; `--ir` matches Lean's reals & speed; **`--floatbv` wins bit-precise FP + counterexamples**. *(Artefact + numbers: `lean/`.)*
+ITP wins generality; `--ir` matches Lean's reals & speed; **`--floatbv` wins bit-precise FP + counterexamples**. *(Verified: `lean/floatspec/` (FloatSpec) + `lean/Bits.lean`; numbers: `lean/`.)*
 
 ---
 
