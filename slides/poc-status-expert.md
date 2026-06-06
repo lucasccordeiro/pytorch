@@ -226,7 +226,7 @@ Different *hard problem*: Alive2's is UB/poison refinement; ours is floating-poi
 
 - ✅ **Checks the real code** — the program *is* the spec; no re-encoding of semantics.
 - ✅ **Bit-precise IEEE-754, built in** — exactly where fusion breaks (reassociation, rounding); plain reals answer the *wrong* question, and a Lean IEEE-754 library needs manual proofs + gives no counterexamples.
-- ✅ **Counterexamples** — a concrete failing tensor when the rewrite is wrong (Lean gives none).
+- ✅ **Counterexamples** — a concrete failing tensor when the rewrite is wrong (Lean gives none); e.g. `reassoc_fusion_exact` yields a 1-ULP witness.
 - ✅ **Push-button / CI-able** — gate optimisations automatically.
 
 **Choose Lean (ITP)** only for the *different* goal of a **size-general, all-shapes theorem over reals** — at higher encoding/proof cost, no FP, no counterexamples.

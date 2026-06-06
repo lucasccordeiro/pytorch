@@ -34,6 +34,13 @@ with a refuted `_buggy` mutant:
 | `qkv_equivalence_torch_buggy` | torch, split swaps K/V | FAILED |
 | `bias_linear` | `X@W + b` vs. augmented `[X\|1] @ [W;b]`, torch-native | SUCCESSFUL |
 | `bias_linear_buggy` | fused unit column zeroed, bias dropped | FAILED |
+| `reassoc_fusion_exact` | **reassociating** reduction, exact (`==`) — unsound in FP | FAILED (+ c.ex.) |
+
+`reassoc_fusion_exact` is the bug-finding showcase: a reduction reorder that is
+sound over the reals but **unsound in IEEE-754**, which ESBMC `--floatbv` refutes
+with a concrete **1-ULP counterexample** — the capability neither Lean nor ESBMC
+`--ir` (reals) provides. Its tolerance counterpart (`reassoc_fusion_tol.py`) is
+provable but expensive, so it is kept out of the default suite (see `REPORT.md`).
 
 The `_exact` targets prove the two programs **bit-for-bit equal** (zero
 tolerance) — sound because the fused computation is the *identical* multiply–add
@@ -90,7 +97,9 @@ harness/
   qkv_equivalence.py               scalar QKV equivalence: tolerance, _exact, _buggy
   qkv_equivalence_torch.py         torch-native QKV: tolerance, _exact, _buggy
   bias_linear.py                   bias-fused linear equivalence    (+ _buggy)
+  reassoc_fusion_exact.py          reassociating reduction: refuted (+ _tol, slow)
   esbmc_defects/                   minimal reproducers for the ESBMC bugs found
+validation/                        differential test of the OM vs real PyTorch
 verify.py                          suite driver
 Makefile                           `make verify`
 README / REPORT / AUDIT / ROADMAP / RETROSPECTIVE.md

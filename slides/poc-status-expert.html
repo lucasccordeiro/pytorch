@@ -227,7 +227,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
     <ul>
       <li><span class="ok">✅</span> <b>Checks the real code</b> — the program <em>is</em> the spec; no re-encoding of semantics.</li>
       <li><span class="ok">✅</span> <b>Bit-precise IEEE-754, built in</b> — exactly where fusion breaks (reassociation, rounding); plain reals answer the <em>wrong</em> question, and a Lean IEEE-754 library needs manual proofs + gives no counterexamples.</li>
-      <li><span class="ok">✅</span> <b>Counterexamples</b> — a concrete failing tensor when the rewrite is wrong (Lean gives none).</li>
+      <li><span class="ok">✅</span> <b>Counterexamples</b> — a concrete failing tensor when the rewrite is wrong (Lean gives none); e.g. <code>reassoc_fusion_exact</code> yields a 1-ULP witness.</li>
       <li><span class="ok">✅</span> <b>Push-button / CI-able</b> — gate optimisations automatically.</li>
     </ul>
     <p><b>Choose Lean (ITP)</b> only for the <em>different</em> goal of a <b>size-general, all-shapes theorem over reals</b> — at higher encoding/proof cost, no FP, no counterexamples.</p>

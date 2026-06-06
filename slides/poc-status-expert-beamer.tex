@@ -292,7 +292,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
   \begin{itemize}
     \item \good\ \textbf{Checks the real code} --- the program \emph{is} the spec; no re-encoding of semantics.
     \item \good\ \textbf{Bit-precise IEEE-754, built in} --- exactly where fusion breaks (reassociation, rounding); plain reals answer the \emph{wrong} question, and a Lean IEEE-754 library needs manual proofs {+} gives no counterexamples.
-    \item \good\ \textbf{Counterexamples} --- a concrete failing tensor when the rewrite is wrong (Lean gives none).
+    \item \good\ \textbf{Counterexamples} --- a concrete failing tensor when the rewrite is wrong (Lean gives none); e.g.\ \texttt{reassoc\_fusion\_exact} yields a 1-ULP witness.
     \item \good\ \textbf{Push-button / CI-able} --- gate optimisations automatically.
   \end{itemize}
   \textbf{Choose Lean (ITP)} only for the \emph{different} goal of a \textbf{size-general,
