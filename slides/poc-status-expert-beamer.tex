@@ -161,8 +161,9 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
 
 % ---------------------------------------------------------------
 \begin{frame}{Results}
-  \textbf{8 / 8} --- QKV proved \emph{exact} and \emph{tolerance}, in \emph{scalar} and
-  \emph{torch-native} encodings; each clean target paired with a refuted mutant (Bitwuzla, fixed dims).
+  \textbf{9 / 9} --- QKV proved \emph{exact} and \emph{tolerance}, in \emph{scalar} and
+  \emph{torch-native} encodings; each clean target paired with a refuted mutant; \textbf{plus a
+  reassociating fusion refuted with a counterexample} (Bitwuzla, fixed dims).
 
   \medskip
   \begin{tabular}{@{}llll@{}}
@@ -175,6 +176,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
     \texttt{qkv\_equivalence\_torch} & \texttt{allclose} def. & \good\ SUCCESSFUL & 124 s \\
     \texttt{*\_buggy} ($\times 3$) & refutation & \bad\ violated (c.ex.) & 35--338 s \\
     \texttt{bias\_linear} (+\,buggy) & $XW{+}b \equiv [X|1][W;b]$ & \good\,/\,\bad & 35--135 s \\
+    \texttt{reassoc\_fusion\_exact} & reassoc \texttt{==} (\textbf{unsound FP}) & \bad\ 1-ULP c.ex. & 15 s \\
     \bottomrule
   \end{tabular}
 
