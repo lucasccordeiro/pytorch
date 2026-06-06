@@ -151,7 +151,9 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)
       SUCCESS on truncation). Symbolic dims $\Rightarrow$ \texttt{-{}-k-induction} with convergence.
     \item \textbf{Bit-precise IEEE-754} FP theory (Bitwuzla / Z3); rounding modelled, not abstracted.
     \item \textbf{UNSAT $\Rightarrow$ proved} over the region; \textbf{SAT $\Rightarrow$ falsifying assignment}.
-    \item TCB: Python frontend $+$ operational model $+$ SMT solver.
+    \item TCB: Python frontend $+$ operational model $+$ SMT solver. \textbf{OM validated} vs real
+      PyTorch (\texttt{validation/}): \texttt{cat}/\texttt{split}/\texttt{allclose} bit-exact,
+      \texttt{mm} within $\sim$4e-13 (torch's reduction order differs).
     \item \textbf{Not modelled}: backend-specific optimisations (FMA, parallel/tree reductions,
       cuBLAS). \textbf{Intended use: reference-semantics equivalence}, not production-kernel equivalence.
   \end{itemize}

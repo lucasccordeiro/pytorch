@@ -116,7 +116,7 @@ Python frontend → **GOTO** → symbolic execution → **VCs** → SMT.
   truncation). Symbolic dims ⇒ `--k-induction` with convergence.
 - **Bit-precise IEEE-754** in the FP theory (Bitwuzla / Z3); rounding is modelled, not abstracted.
 - **UNSAT ⇒ proved** over the region; **SAT ⇒ the falsifying assignment** is reported.
-- TCB: the Python frontend + operational model + SMT solver.
+- TCB: the Python frontend + operational model + SMT solver. **OM validated** vs real PyTorch (`validation/`): `cat`/`split`/`allclose` bit-exact, `mm` within ~4e-13 (torch's reduction order differs).
 - **Not modelled**: backend-specific optimisations (FMA, parallel/tree reductions, cuBLAS). **Intended use: reference-semantics equivalence**, not production-kernel equivalence.
 
 ---
