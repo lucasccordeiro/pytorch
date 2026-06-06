@@ -136,7 +136,7 @@ assert torch.allclose(torch.mm(X, Wq), split_Q(QKV), 0.0, 0.0)   # exact</pre>
       <li>Fixed dims ⇒ loops fully unwound; <b>unwinding assertions ON</b> (no vacuous SUCCESS on truncation). Symbolic dims ⇒ <code>--k-induction</code> with convergence.</li>
       <li><b>Bit-precise IEEE-754</b> FP theory (Bitwuzla / Z3); rounding modelled, not abstracted.</li>
       <li><b>UNSAT ⇒ proved</b> over the region; <b>SAT ⇒ the falsifying assignment</b>.</li>
-      <li>TCB: Python frontend + operational model + SMT solver.</li>
+      <li>TCB: Python frontend + operational model + SMT solver. <b>OM validated</b> vs real PyTorch (<code>validation/</code>): <code>cat</code>/<code>split</code>/<code>allclose</code> bit-exact, <code>mm</code> within ~4e-13 (torch's reduction order differs).</li>
       <li><b>Not modelled</b>: backend-specific optimisations (FMA, parallel/tree reductions, cuBLAS). <b>Intended use: reference-semantics equivalence</b>, not production-kernel equivalence.</li>
     </ul>
   </section>

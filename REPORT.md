@@ -60,3 +60,11 @@ equivalence assertion, e.g. `qkv_equivalence_torch_buggy` violates
   insufficient bound surfaces as an unwinding-assertion violation (a safe
   failure), never as a false SUCCESSFUL. The chosen bounds (`8` scalar, `4`
   torch) fully unwind every loop including the `3H`-column fused matmul.
+- **Operational-model faithfulness — measured.** The result is *modulo* the OM
+  (`torch.py`) matching real PyTorch. A differential test (`validation/`) runs the
+  OM's `mm`/`cat`/`split`/`allclose` against `torch` on thousands of random
+  float64 inputs: **`cat`/`split`/`allclose` are bit-exact**; **`mm` agrees up to
+  IEEE-754 rounding** (max relative error ~4e-13) but is **not bit-identical**
+  (torch uses a different reduction order). So the OM is a faithful reference up
+  to rounding, and the QKV equivalence is bit-exact *within the OM's sequential
+  order* — not a bit-for-bit claim about a deployed `torch.mm`.
