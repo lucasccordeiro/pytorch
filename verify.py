@@ -78,6 +78,13 @@ MANIFEST: list[Target] = [
            ("--unwind", "4"), "SUCCESSFUL"),
     Target("bias_linear_buggy", "bias_linear_buggy.py",
            ("--unwind", "4"), "FAILED"),
+    # A reassociating fusion: sound over reals, UNSOUND in IEEE-754. ESBMC
+    # refutes the exact equality and returns a concrete counterexample — the
+    # bug-finding case that motivates BMC. (FAILED is the desired outcome.)
+    # The matching tolerance proof, reassoc_fusion_tol.py, is provable but
+    # expensive, so it is intentionally not in the default suite.
+    Target("reassoc_fusion_exact", "reassoc_fusion_exact.py",
+           ("--unwind", "2"), "FAILED"),
 ]
 
 _VERDICT_RE = re.compile(r"^VERIFICATION (SUCCESSFUL|FAILED)$", re.MULTILINE)

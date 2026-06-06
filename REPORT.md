@@ -28,11 +28,23 @@ the whole suite. The scalar targets require neither.
 | `qkv_equivalence_torch_buggy` | 4 | FAILED | FAILED | 274 s |
 | `bias_linear` (tolerance) | 4 | SUCCESSFUL | SUCCESSFUL | 113 s |
 | `bias_linear_buggy` | 4 | FAILED | FAILED | 31 s |
+| `reassoc_fusion_exact` | 2 | FAILED | FAILED (+ c.ex.) | 15 s |
 
-**8/8 targets behave as expected.** Each clean target verifies; each mutant is
+**9/9 targets behave as expected.** Each clean target verifies; each mutant is
 refuted with a concrete counterexample (the `_buggy` runs report a violated
 equivalence assertion, e.g. `qkv_equivalence_torch_buggy` violates
 `assert torch.allclose(Va, Vb)`), so the suite cannot pass vacuously.
+
+- **Reassociation counterexample (the BMC sweet spot).** `reassoc_fusion_exact`
+  reorders a 3-term reduction — sound over the reals, **unsound in IEEE-754**.
+  ESBMC `--floatbv` refutes the exact equality in ~15 s and returns a concrete
+  **1-ULP counterexample** (`ref` and `opt` differ in the last bit). This is the
+  capability neither Lean nor ESBMC `--ir` (reals) can provide. The matching
+  *tolerance* bound (`reassoc_fusion_tol.py`) is true and provable in principle,
+  but proving it over the whole bit-precise FP space did **not** converge in
+  ~11 min — so it is kept out of the default suite. The asymmetry is the lesson:
+  with BMC, **finding a counterexample is cheap; proving an FP bound everywhere
+  is expensive.**
 
 ## Notes on the numbers
 
